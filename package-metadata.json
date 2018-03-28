@@ -1,7 +1,8 @@
 {
   "dependencies": [],
-  "url": "https://github.com/y0ssar1an/CSS3",
+  "url": "https://github.com/icjmaa/MySFTP",
   "sublime_text": ">=3000",
   "version": "1.0.0",
   "platforms": ["*"], 
-  "description": "Esta es la descripción"}
+  "description": "Esta es la descripción"
+}
