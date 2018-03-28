@@ -41,7 +41,7 @@ class MySftp(sublime_plugin.TextCommand):
 		global diagonal
 		global tmp_dir
 		#sublime.message_dialog( str(datetime.datetime.now()) )
-		mydir = os.path.dirname(os.path.abspath(__file__))
+		mydir = "../../Packages/User"
 		
 		if platform.system() == "Linux":
 			diagonal = "/"
@@ -622,8 +622,8 @@ class MyInsertProgressBarCommand(sublime_plugin.TextCommand):
 		view = self.view
 		# replace the content of the view
 		view.set_read_only(False)
-		view.settings().set("color_scheme","Packages/MySFTP/Monokai.tmTheme")
-		view.set_syntax_file("Packages/MySFTP/MySFTP.tmLanguage")
+		view.settings().set("color_scheme","../../Packages/MySFTP/Monokai.tmTheme")
+		view.set_syntax_file("../../Packages/MySFTP/MySFTP.tmLanguage")
 		point = self.view.text_point(cntLine, 0)
 		view.insert(edit, point, message)
 		view.set_read_only(True)
