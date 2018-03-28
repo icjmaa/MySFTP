@@ -622,8 +622,8 @@ class MyInsertProgressBarCommand(sublime_plugin.TextCommand):
 		view = self.view
 		# replace the content of the view
 		view.set_read_only(False)
-		view.settings().set("color_scheme","Packages/MySFTP/Monokai.tmTheme")
-		view.set_syntax_file("Packages/MySFTP/MySFTP.tmLanguage")
+		view.settings().set("color_scheme","../../Packages/MySFTP/Monokai.tmTheme")
+		view.set_syntax_file("../../Packages/MySFTP/MySFTP.tmLanguage")
 		point = self.view.text_point(cntLine, 0)
 		view.insert(edit, point, message)
 		view.set_read_only(True)
