@@ -731,6 +731,7 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				return False
 		else:
 			try:
+				print(mydir + "\\script.bat")
 				scrip_file = open(mydir + "\\script.bat","w")
 				scrip_file.write(comando)
 				scrip_file.close()
