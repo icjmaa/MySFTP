@@ -605,7 +605,7 @@ class NewServer(sublime_plugin.WindowCommand):
 		global contador_uso
 		vista = self.window.new_file()
 		self.window.run_command('insert_snippet',{"contents": "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"${1:[ip_host:host_name]}\",\n\t\"user\" : \"${2:usuario}\",\n\t\"password\" : \"${3:contraseña}\",\n\t\"port\" : \"${4:puerto}\",\n\t\"remote_path\" : \"${5:/var/www/html/}\"\n}]"})
-		vista.set_syntax_file("Packages/JavaScript/JSON.sublime-syntax")
+		vista.set_syntax_file("../../Packages/JavaScript/JSON.sublime-syntax")
 
 class renameSftp(sublime_plugin.WindowCommand):
 	def run(self,archivo):
@@ -622,8 +622,8 @@ class MyInsertProgressBarCommand(sublime_plugin.TextCommand):
 		view = self.view
 		# replace the content of the view
 		view.set_read_only(False)
-		view.settings().set("color_scheme","Packages/MySFTP/Monokai.tmTheme")
-		view.set_syntax_file("Packages/MySFTP/MySFTP.tmLanguage")
+		view.settings().set("color_scheme","../../Packages/MySFTP/Monokai.tmTheme")
+		view.set_syntax_file("../../Packages/MySFTP/MySFTP.tmLanguage")
 		point = self.view.text_point(cntLine, 0)
 		view.insert(edit, point, message)
 		view.set_read_only(True)
