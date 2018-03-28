@@ -41,7 +41,7 @@ class MySftp(sublime_plugin.TextCommand):
 		global diagonal
 		global tmp_dir
 		#sublime.message_dialog( str(datetime.datetime.now()) )
-		mydir = "../../Packages/User"
+		mydir = "../Packages/User"
 		
 		if platform.system() == "Linux":
 			diagonal = "/"
