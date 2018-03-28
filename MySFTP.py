@@ -49,8 +49,8 @@ class MySftp(sublime_plugin.TextCommand):
 
 		#Mostramos los servidores disponibles
 		archivos = ""
-		for arch in os.listdir(mydir + diagonal):
-			if os.path.isfile(os.path.join(mydir + diagonal, arch)):
+		for arch in os.listdir(mydir + "/"):
+			if os.path.isfile(os.path.join(mydir + "/", arch)):
 				filename, file_extension = os.path.splitext(arch)
 				if file_extension == ".json":
 					archivos = archivos + ( "," if len(archivos) > 0 else "")
