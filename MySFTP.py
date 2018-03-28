@@ -731,11 +731,11 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				return False
 		else:
 			try:
-				print(mydir + "\\script.bat")
-				scrip_file = open(mydir + "\\script.bat","w")
+				print(mydir + "/script.bat")
+				scrip_file = open(mydir + "/script.bat","w")
 				scrip_file.write(comando)
 				scrip_file.close()
-				proceso = subprocess.Popen(["bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , mydir + "\\script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+				proceso = subprocess.Popen(["bin/psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , mydir + "/script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 				proceso.wait( 5 )
 				errores = proceso.stderr.read()
 				salida = proceso.stdout.read()
