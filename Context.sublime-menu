@@ -1,0 +1,28 @@
+[
+	{
+		"caption": "-",
+	},
+	{
+		"caption": "MySftp",
+		"command": "sync_files",
+		"args": {
+			"comando": "",
+			"file" : ""
+		},
+		"children": [
+			{
+				"caption": "Actualizar Local to Servidor",
+				"command": "sync_files",
+				"args": {
+					"comando" : "put_sftp"
+				}
+			},
+			{
+				"caption": "Actualizar Servidor to Local",
+				"command": "sync_files",
+				"args": {
+					"comando" : "get_sftp"
+				}
+			}
+		]
+}]
