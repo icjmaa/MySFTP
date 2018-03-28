@@ -732,6 +732,9 @@ def SFTP(comando, type = "sftp", cmd = ""):
 		else:
 			try:
 				print(mydir + "/script.bat")
+				full_path = os.path.dirname(os.path.abspath(__file__))
+				print(full_path + "\n")
+				
 				scrip_file = open(mydir + "/script.bat","w")
 				scrip_file.write(comando)
 				scrip_file.close()
