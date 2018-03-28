@@ -43,7 +43,7 @@ class MySftp(sublime_plugin.TextCommand):
 		#sublime.message_dialog( str(datetime.datetime.now()) )
 		mydir = "../../Packages/User"
 		
-		prueba = open("messages/install.txt")
+		prueba = open("messages\\install.txt")
 		print(prueba.read())
 		prueba.close()
 		return
