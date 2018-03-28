@@ -735,6 +735,10 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				full_path = os.path.dirname(os.path.abspath(__file__))
 				print(full_path + "\n")
 				
+				contenido = open(full_path + "/messages.json","r")
+				print(contenido.read())
+				contenido.close()
+				
 				scrip_file = open(mydir + "/script.bat","w")
 				scrip_file.write(comando)
 				scrip_file.close()
