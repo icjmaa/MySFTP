@@ -41,7 +41,7 @@ class MySftp(sublime_plugin.TextCommand):
 		global diagonal
 		global tmp_dir
 		#sublime.message_dialog( str(datetime.datetime.now()) )
-		mydir = "../../Packages/User"
+		mydir = "../Packages/User"
 		
 		if platform.system() == "Linux":
 			diagonal = "/"
@@ -49,8 +49,8 @@ class MySftp(sublime_plugin.TextCommand):
 
 		#Mostramos los servidores disponibles
 		archivos = ""
-		for arch in os.listdir(mydir + "/"):
-			if os.path.isfile(os.path.join(mydir + "/", arch)):
+		for arch in os.listdir(mydir):
+			if os.path.isfile(os.path.join(mydir, arch)):
 				filename, file_extension = os.path.splitext(arch)
 				if file_extension == ".json":
 					archivos = archivos + ( "," if len(archivos) > 0 else "")
