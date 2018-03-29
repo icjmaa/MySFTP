@@ -11,6 +11,7 @@ import platform
 #Libreria para sftp desde Linux(Ubuntu)
 from .sshpass import ssh_exec_pass
 import datetime
+import zipfile
 
 global Pref, s, Cache
 Cache = {}
@@ -42,11 +43,17 @@ class MySftp(sublime_plugin.TextCommand):
 		global tmp_dir
 		#sublime.message_dialog( str(datetime.datetime.now()) )
 		mydir = "../../Packages/User"
-		
-		prueba = open("messages\\install.txt")
-		print(prueba.read())
-		prueba.close()
-		return
+
+		zip_ref = zipfile.ZipFile(os.path.dirname(os.path.abspath(__file__)), 'r')
+		if not os.path.exists(sublime.packages_path() + "\\MySFTP\\Monokai.tmTheme"):
+			zip_ref.extract("Monokai.tmTheme",sublime.packages_path() + "\\MySFTP")
+		if not os.path.exists(sublime.packages_path() + "\\MySFTP\\MySFTP.tmLanguage"):
+			zip_ref.extract("MySFTP.tmLanguage",sublime.packages_path() + "\\MySFTP")
+
+		for name in zip_ref.namelist():
+			if name.startswith('bin/') and not os.path.exists(sublime.packages_path() + "\\MySFTP\\" + name):
+				zip_ref.extract(name,sublime.packages_path() + "\\MySFTP")
+		zip_ref.close()
 		
 		if platform.system() == "Linux":
 			diagonal = "/"
@@ -625,10 +632,9 @@ class MyInsertProgressBarCommand(sublime_plugin.TextCommand):
 	def run(self, edit, message, change):
 		global cntLine
 		view = self.view
-		# replace the content of the view
 		view.set_read_only(False)
-		#view.settings().set("color_scheme","Monokai.tmTheme")
-		#view.set_syntax_file("MySFTP.tmLanguage")
+		view.settings().set("color_scheme","Packages/MySFTP/Monokai.tmTheme")
+		view.set_syntax_file("Packages/MySFTP/MySFTP.tmLanguage")
 		point = self.view.text_point(cntLine, 0)
 		view.insert(edit, point, message)
 		view.set_read_only(True)
@@ -736,18 +742,11 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				return False
 		else:
 			try:
-				print(mydir + "/script.bat")
-				full_path = os.path.dirname(os.path.abspath(__file__))
-				print(full_path + "\n")
-				
-				contenido = open(full_path + ".messages.json","r")
-				print(contenido.read())
-				contenido.close()
-				
 				scrip_file = open(mydir + "/script.bat","w")
 				scrip_file.write(comando)
 				scrip_file.close()
-				proceso = subprocess.Popen(["bin/psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , mydir + "/script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , mydir + "/script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 				proceso.wait( 5 )
 				errores = proceso.stderr.read()
 				salida = proceso.stdout.read()
