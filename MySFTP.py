@@ -742,11 +742,11 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				return False
 		else:
 			try:
-				scrip_file = open(mydir + "/script.bat","w")
+				scrip_file = open(sublime.packages_path() + "\\User\\script.bat","w")
 				scrip_file.write(comando)
 				scrip_file.close()
 
-				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , mydir + "/script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , sublime.packages_path() + "\\User\\script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 				proceso.wait( 5 )
 				errores = proceso.stderr.read()
 				salida = proceso.stdout.read()
