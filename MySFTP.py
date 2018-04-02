@@ -42,17 +42,17 @@ class MySftp(sublime_plugin.TextCommand):
 		global diagonal
 		global tmp_dir
 		#sublime.message_dialog( str(datetime.datetime.now()) )
-		mydir = "../../Packages/User"
+		mydir = sublime.packages_path() + "/User"
 
 		zip_ref = zipfile.ZipFile(os.path.dirname(os.path.abspath(__file__)), 'r')
-		if not os.path.exists(sublime.packages_path() + "\\MySFTP\\Monokai.tmTheme"):
-			zip_ref.extract("Monokai.tmTheme",sublime.packages_path() + "\\MySFTP")
-		if not os.path.exists(sublime.packages_path() + "\\MySFTP\\MySFTP.tmLanguage"):
-			zip_ref.extract("MySFTP.tmLanguage",sublime.packages_path() + "\\MySFTP")
+		if not os.path.exists(sublime.packages_path() + "/MySFTP/Monokai.tmTheme"):
+			zip_ref.extract("Monokai.tmTheme",sublime.packages_path() + "/MySFTP")
+		if not os.path.exists(sublime.packages_path() + "/MySFTP/MySFTP.tmLanguage"):
+			zip_ref.extract("MySFTP.tmLanguage",sublime.packages_path() + "/MySFTP")
 
 		for name in zip_ref.namelist():
-			if name.startswith('bin/') and not os.path.exists(sublime.packages_path() + "\\MySFTP\\" + name):
-				zip_ref.extract(name,sublime.packages_path() + "\\MySFTP")
+			if name.startswith('bin/') and not os.path.exists(sublime.packages_path() + "/MySFTP/" + name):
+				zip_ref.extract(name,sublime.packages_path() + "/MySFTP")
 		zip_ref.close()
 		
 		if platform.system() == "Linux":
@@ -71,7 +71,6 @@ class MySftp(sublime_plugin.TextCommand):
 
 class SyncFiles(sublime_plugin.WindowCommand):
 	def run(self, comando):
-		global mydir
 		global currentPath
 		global puerto
 		global usuario
@@ -119,8 +118,6 @@ class SyncFiles(sublime_plugin.WindowCommand):
 		self.window.run_command("get_sftp",{"file" : file, "flag" : True})
 
 	def is_visible(self, paths = []):
-		global mydir
-		mydir = os.path.dirname(os.path.abspath(__file__))
 		if os.path.dirname(self.window.active_view().file_name()) != tmp_dir:
 			return False
 		else:
@@ -342,7 +339,9 @@ class getSftp(sublime_plugin.TextCommand):
 			nick_use = open(tmp_dir + diagonal + file + ".sftp","r")
 			nick_current_use = nick_use.read() 
 			nick_use.close()
-
+			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
+				os.remove(tmp_dir + diagonal + file + ".sftp")
+				
 			if nick_current_use != nick:
 				if not sublime.ok_cancel_dialog("El usuario " + nick_current_use + " esta usando actualmente el archivo, Deseas continuar con la descarga?."):
 					self.view.window().run_command("progress_bar", {"mensaje" : "    Cancel."})
@@ -419,7 +418,7 @@ class putSftp(sublime_plugin.TextCommand):
 		global tipo
 		global tmp_dir
 		global diagonal
-		mydir = os.path.dirname(os.path.abspath(__file__))
+		mydir = sublime.packages_path() + "/User"
 		
 		if platform.system() == "Linux":
 			diagonal = "/"
@@ -436,7 +435,7 @@ class putSftp(sublime_plugin.TextCommand):
 			#Es un archivo de la carpeta de temporales
 			path_put = currentPath
 			if flag == False:
-				mydir = os.path.dirname(os.path.abspath(__file__))
+				#mydir = os.path.dirname(os.path.abspath(__file__))
 				file_path = open( os.path.splitext(ruta)[0] + ".path" , "r")
 				path_put = file_path.read()
 				file_path.close()
@@ -565,11 +564,11 @@ class EditServer(sublime_plugin.WindowCommand):
 	def run(self):
 		global mydir
 		global listServers
-		mydir = os.path.dirname(os.path.abspath(__file__))
+		mydir = sublime.packages_path() + "/User"
 		#Mostramos los servidores disponibles
 		archivos = ""
-		for arch in os.listdir(mydir + diagonal):
-			if os.path.isfile(os.path.join(mydir + diagonal, arch)):
+		for arch in os.listdir(mydir):
+			if os.path.isfile(os.path.join(mydir, arch)):
 				filename, file_extension = os.path.splitext(arch)
 				if file_extension == ".json":
 					archivos = archivos + ( "," if len(archivos) > 0 else "")
@@ -591,11 +590,11 @@ class DeleteServer(sublime_plugin.WindowCommand):
 	def run(self):
 		global mydir
 		global listServers
-		mydir = os.path.dirname(os.path.abspath(__file__))
+		mydir = sublime.packages_path() + "/User"
 		#Mostramos los servidores disponibles
 		archivos = ""
-		for arch in os.listdir(mydir + diagonal):
-			if os.path.isfile(os.path.join(mydir + diagonal, arch)):
+		for arch in os.listdir(mydir):
+			if os.path.isfile(os.path.join(mydir, arch)):
 				filename, file_extension = os.path.splitext(arch)
 				# print(arch + "," + filename + "," + file_extension)
 				if file_extension == ".json":
@@ -668,7 +667,6 @@ class ProgressBarCommand(sublime_plugin.WindowCommand):
 
 #Función global SFTP
 def SFTP(comando, type = "sftp", cmd = ""):
-	global mydir
 	global puerto
 	global usuario
 	global password
