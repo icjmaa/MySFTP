@@ -44,17 +44,18 @@ class MySftp(sublime_plugin.TextCommand):
 		#sublime.message_dialog( str(datetime.datetime.now()) )
 		mydir = sublime.packages_path() + "/User"
 
-		zip_ref = zipfile.ZipFile(os.path.dirname(os.path.abspath(__file__)), 'r')
-		if not os.path.exists(sublime.packages_path() + "/MySFTP/Monokai.tmTheme"):
-			zip_ref.extract("Monokai.tmTheme",sublime.packages_path() + "/MySFTP")
-		if not os.path.exists(sublime.packages_path() + "/MySFTP/MySFTP.tmLanguage"):
-			zip_ref.extract("MySFTP.tmLanguage",sublime.packages_path() + "/MySFTP")
+		if os.path.dirname(os.path.abspath(__file__)).find("sublime-package") != -1:
+			zip_ref = zipfile.ZipFile(os.path.dirname(os.path.abspath(__file__)), 'r')
+			if not os.path.exists(sublime.packages_path() + "/MySFTP/Monokai.tmTheme"):
+				zip_ref.extract("Monokai.tmTheme",sublime.packages_path() + "/MySFTP")
+			if not os.path.exists(sublime.packages_path() + "/MySFTP/MySFTP.tmLanguage"):
+				zip_ref.extract("MySFTP.tmLanguage",sublime.packages_path() + "/MySFTP")
 
-		for name in zip_ref.namelist():
-			if name.startswith('bin/') and not os.path.exists(sublime.packages_path() + "/MySFTP/" + name):
-				zip_ref.extract(name,sublime.packages_path() + "/MySFTP")
-		zip_ref.close()
-		
+			for name in zip_ref.namelist():
+				if name.startswith('bin/') and not os.path.exists(sublime.packages_path() + "/MySFTP/" + name):
+					zip_ref.extract(name,sublime.packages_path() + "/MySFTP")
+			zip_ref.close()
+
 		if platform.system() == "Linux":
 			diagonal = "/"
 			tmp_dir = mydir + diagonal + "tmp_my_sftp"
@@ -185,7 +186,7 @@ class showServers(sublime_plugin.WindowCommand):
 				self.window.run_command("progress_bar", {"mensaje" : "\nConectado en: " + host + " como: " + usuario})
 			#Aqui listamos mostramos la lista de elementos comando ls
 			self.window.run_command("progress_bar", {"mensaje" : "\nListando el directorio: " + currentPath})
-			salida = SFTP("cd " + currentPath + "\nls\n", tipo, "ls")
+			salida = SFTP("cd " + currentPath + "\nls\nbye\n", tipo, "ls")
 			if salida == False:
 				self.window.run_command("progress_bar", {"mensaje" : "    error\nImposible conectar con el servidor por el momento."})
 				return
@@ -202,7 +203,9 @@ class showLs(sublime_plugin.WindowCommand):
 		list_files = []
 		lista = args.split("\n")
 
-		for item in range(3,len(lista) - 1):
+		start = 0 if (platform.system() == "Linux" ) else 3
+
+		for item in range(start,len(lista) - 1):
 			file = lista[item]
 			if self.limpiarCadena(file)[0] == 'd':
 				if len(self.limpiarCadena(file).split(" ")) == 9:
@@ -210,7 +213,7 @@ class showLs(sublime_plugin.WindowCommand):
 			else:
 				if len(self.limpiarCadena(file).split(" ")) == 9:
 					name_file = self.limpiarCadena(file).split(" ")[8]
-					
+
 			if len(self.limpiarCadena(file).split(" ")) == 9:
 				if name_file[0] != '.':
 					list_files.append(name_file)
@@ -329,7 +332,7 @@ class getSftp(sublime_plugin.TextCommand):
 		global createPanelOutput
 		#flag_edit = True
 		self.view.window().run_command("progress_bar", {"mensaje" : "\nDescargando: " + currentPath + file + " en " + tmp_dir + diagonal + file, "change" : False, "loading" : True})
-		
+
 		if not os.path.exists(tmp_dir): os.makedirs(tmp_dir)#Cramos la carpeta temporal
 		##############################################################################
 
@@ -337,11 +340,11 @@ class getSftp(sublime_plugin.TextCommand):
 		if salida.find(file + ".sftp") > 0:#Validamos que exista el archivo
 			salida = SFTP("cd " + currentPath + "\nget " + file + ".sftp" + " " + tmp_dir + diagonal + file + ".sftp", tipo, "get")
 			nick_use = open(tmp_dir + diagonal + file + ".sftp","r")
-			nick_current_use = nick_use.read() 
+			nick_current_use = nick_use.read()
 			nick_use.close()
 			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
 				os.remove(tmp_dir + diagonal + file + ".sftp")
-				
+
 			if nick_current_use != nick:
 				if not sublime.ok_cancel_dialog("El usuario " + nick_current_use + " esta usando actualmente el archivo, Deseas continuar con la descarga?."):
 					self.view.window().run_command("progress_bar", {"mensaje" : "    Cancel."})
@@ -354,7 +357,7 @@ class getSftp(sublime_plugin.TextCommand):
 			return
 		else:
 			nick_use = open(tmp_dir + diagonal + file + ".sftp","w")
-			nick_use.write(nick) 
+			nick_use.write(nick)
 			nick_use.close()
 			self.view.window().run_command("put_sftp",{"file" : tmp_dir + diagonal + file + ".sftp", "flag" : True})
 			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
@@ -366,7 +369,7 @@ class getSftp(sublime_plugin.TextCommand):
 				self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tiene los permisos necesarios."})
 				return
 		aux_path = open(tmp_dir + diagonal + os.path.splitext(file)[0] + ".path","w")
-		aux_path.write(currentPath) 
+		aux_path.write(currentPath)
 		aux_path.close()
 
 		aux_config = open(tmp_dir + diagonal + os.path.splitext(file)[0] + ".config","w")
@@ -419,13 +422,13 @@ class putSftp(sublime_plugin.TextCommand):
 		global tmp_dir
 		global diagonal
 		mydir = sublime.packages_path() + "/User"
-		
+
 		if platform.system() == "Linux":
 			diagonal = "/"
 			tmp_dir = mydir + diagonal + "tmp_my_sftp"
 
 		#flag sabemos si hay nombre de archivo o no
-		
+
 		if flag == True:
 			ruta = file.replace(".sftp", "")
 		else:
@@ -480,14 +483,14 @@ class putSftp(sublime_plugin.TextCommand):
 			if salida.find(os.path.basename(ruta) + ".sftp") > 0:#Validamos que exista el archivo
 				salida = SFTP("cd " + currentPath + "\nget " + os.path.basename(ruta) + ".sftp" + " " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", tipo, "get")
 				nick_use = open(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" ,"r")
-				nick_current_use = nick_use.read() 
+				nick_current_use = nick_use.read()
 				nick_use.close()
 				if nick != nick_current_use and flag == False:
 					if not sublime.ok_cancel_dialog("El usuario " + nick_current_use + " esta usando actualmente el archivo, Deseas subir tus cambios?."):
 						self.view.window().run_command("progress_bar", {"mensaje" : "    Cancel."})
 						return
 			nick_use = open(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", "w")
-			nick_use.write(nick) 
+			nick_use.write(nick)
 			nick_use.close()
 			salida = SFTP("cd " + "\n" +  "put " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" + " " + currentPath + os.path.basename(ruta) + ".sftp", tipo, "put")
 
@@ -527,7 +530,7 @@ class newFileSftp(sublime_plugin.WindowCommand):
 			new_file = open(tmp_dir + diagonal + name_file ,"w")
 			new_file.close()
 			aux_path = open(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".path","w")
-			aux_path.write(currentPath) 
+			aux_path.write(currentPath)
 			aux_path.close()
 
 			aux_config = open(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".config","w")
@@ -679,38 +682,38 @@ def SFTP(comando, type = "sftp", cmd = ""):
 		if platform.system() == "Linux":
 			#sublime.message_dialog( platform.system() )
 			if cmd == "ls":
-				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + " && ls -lrt"], True)
+				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + " && ls -lrt | sed '/ \.$/d' | sed '/ \.\.$/d'"], True)
 				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "get":
 				array_comando = comando.split("\n")[1]
 				file_server = array_comando.split(' ')[1]
 				file_local = array_comando.split(' ')[2]
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nget " + file_server + " " + file_local], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "put":
 				array_comando = comando.split("\n")[1]
 				file_local = array_comando.split(' ')[1]
 				file_server = array_comando.split(' ')[2]
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nput " + file_local + " " + file_server], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "chmod":
 				array_comando = comando.split("\n")[1]
 				permisos = array_comando.split(' ')[1]
 				file_name = array_comando.split(' ')[2]
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nchmod " + permisos + " " + file_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "mv":
 				array_comando = comando.split("\n")[1]
 				current_name = array_comando.split(' ')[1]
 				last_name = array_comando.split(' ')[2]
 
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrename " + current_name + " " + last_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 
 			elif cmd == "rmdir":
 				array_comando = comando.split("\n")
 				dir_name = array_comando[1].split(' ')[1]
-				
+
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrmdir " + dir_name], True)
 				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "del":
@@ -718,17 +721,17 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				file_name = array_comando[1].split(' ')[1]
 
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrm " + file_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 
 			elif cmd == "mkdir":
 				array_comando = comando.split("\n")
 				dir_name = array_comando[1].split(' ')[1]
 
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nmkdir " + dir_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 
-				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + dir_name + " && ls -lrt"], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') ) 
+				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + dir_name + " && ls -lrt  | sed '/ \.$/d' | sed '/ \.\.$/d'"], True)
+				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			else:
 				sublime.message_dialog("Comando incorrecto")
 
@@ -744,21 +747,34 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				scrip_file.write(comando)
 				scrip_file.close()
 
-				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , sublime.packages_path() + "\\User\\script.bat", usuario + "@" + host], stdin=subprocess.PIPE,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-				proceso.wait( 5 )
+				f = open(sublime.packages_path() + "\\MySFTP\\data.out","w")
+				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , sublime.packages_path() + "\\User\\script.bat", usuario + "@" + host], stdout=f, stderr=subprocess.PIPE, shell=True)
+				proceso.wait(10)
+				f.close()
 				errores = proceso.stderr.read()
-				salida = proceso.stdout.read()
-				proceso.stderr.close()
-				proceso.stdout.close()
-				errores = errores.decode(sys.getdefaultencoding())
-				print("Errores: " + errores)
-				salida = salida.decode(sys.getdefaultencoding()) #Salida del comando
+				if proceso.stdout == None:
+					with open(sublime.packages_path() + "\\MySFTP\\data.out","r") as content_file:
+						content = content_file.read()
+					proceso.stderr.close()
+					errores = errores.decode(sys.getdefaultencoding())
+					print("Errores: " + errores)
+					salida = content
+					os.remove( sublime.packages_path() + "\\MySFTP\\data.out" )
+				else:
+					salida = proceso.stdout.read()
+					proceso.stderr.close()
+					proceso.stdout.close()
+					errores = errores.decode(sys.getdefaultencoding())
+					print("Errores: " + errores)
+					salida = salida.decode(sys.getdefaultencoding()) #Salida del comando
 			except subprocess.TimeoutExpired as e:
 				salida = "Usuario o password incorrectos."
+				print("Ocurrio esto")
 				return False
 				raise e
 
 			if salida.find("Network error: Connection timed out") != -1:
+				print("fue esto")
 				print(salida)
 				return False
 			if salida.find("permission denied") != -1:
@@ -830,14 +846,13 @@ def SFTP(comando, type = "sftp", cmd = ""):
 
 	# if contador_uso > 9:
 	# 	if sublime.message_dialog("Ni verga tienes que pagarme"):
-	# 		print ("Pagar") 
+	# 		print ("Pagar")
 	# 	else:
 	# 		print ("Jajaja")
 	# else:
 	# 	print(str(contador_uso) + "")
 	# 	contador_uso = contador_uso + 1
 	return salida
-
 
 class SideBar(sublime_plugin.WindowCommand):
 	def run(self, paths = []):
