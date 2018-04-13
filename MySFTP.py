@@ -12,6 +12,7 @@ import platform
 from .sshpass import ssh_exec_pass
 import datetime
 import zipfile
+import datetime
 
 global Pref, s, Cache
 Cache = {}
@@ -276,7 +277,7 @@ class showLs(sublime_plugin.WindowCommand):
 		elif index == 2: #"Back to List"
 			self.window.run_command("show_ls",{"args" : args});
 		elif index == 3:#"Editar"
-			self.window.run_command("get_sftp",{"file" : list_files[index_file]})
+			self.window.run_command("get_sftp", {"file" : list_files[index_file], "lista" : list_files})
 		elif index == 4:#"Renombrar"
 			self.window.run_command("rename_sftp", {"archivo" : list_files[index_file]})
 		elif index == 5:#"Cambiar Permisos"
@@ -328,16 +329,15 @@ class removeSftp(sublime_plugin.TextCommand):
 			self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tienes los permisos necesarios."})
 
 class getSftp(sublime_plugin.TextCommand):
-	def run(self,edit,file, flag = False):
+	def run(self,edit,file, flag = False, lista = []):
 		global createPanelOutput
 		#flag_edit = True
-		self.view.window().run_command("progress_bar", {"mensaje" : "\nDescargando: " + currentPath + file + " en " + tmp_dir + diagonal + file, "change" : False, "loading" : True})
+		now = datetime.datetime.now()
+		self.view.window().run_command("progress_bar", {"mensaje" : "\n" + now.strftime("%H:%M:%S") + "->Descargando: " + currentPath + file + " en " + tmp_dir + diagonal + file, "change" : False, "loading" : True})
 
 		if not os.path.exists(tmp_dir): os.makedirs(tmp_dir)#Cramos la carpeta temporal
 		##############################################################################
-
-		salida = SFTP("cd " + currentPath + "\nls\n", tipo, "ls")
-		if salida.find(file + ".sftp") > 0:#Validamos que exista el archivo
+		if "\n".join(lista).find(file + ".sftp") > 0:#Validamos que exista el archivo
 			salida = SFTP("cd " + currentPath + "\nget " + file + ".sftp" + " " + tmp_dir + diagonal + file + ".sftp", tipo, "get")
 			nick_use = open(tmp_dir + diagonal + file + ".sftp","r")
 			nick_current_use = nick_use.read()
@@ -359,12 +359,11 @@ class getSftp(sublime_plugin.TextCommand):
 			nick_use = open(tmp_dir + diagonal + file + ".sftp","w")
 			nick_use.write(nick)
 			nick_use.close()
-			self.view.window().run_command("put_sftp",{"file" : tmp_dir + diagonal + file + ".sftp", "flag" : True})
+			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
+			salida = SFTP("cd " + currentPath + "\nput " + tmp_dir + diagonal + file + ".sftp" + " " + os.path.basename(file) + ".sftp" + "\nget " + file + " " + tmp_dir + diagonal + file, tipo, "get")
 			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
 				os.remove(tmp_dir + diagonal + file + ".sftp")
-
-			#Aqui listamos mostramos la lista de elementos comando ls
-			salida = SFTP("cd " + currentPath + "\nget " + file + " " + tmp_dir + diagonal + file, tipo, "get")
+			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
 			if salida == "permission denied":
 				self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tiene los permisos necesarios."})
 				return
@@ -383,7 +382,7 @@ class getSftp(sublime_plugin.TextCommand):
 		self.view.window().run_command("show_panel", {"panel": "output.progess_bar"})
 
 		def show_progress_bar():
-			show_progress_bar.message = "    "
+			show_progress_bar.message = " "
 			show_progress_bar.change = True
 			vista = self.view.window().open_file(tmp_dir + diagonal + file)
 			while vista.is_loading():
@@ -399,7 +398,7 @@ class MySftpLoad(sublime_plugin.EventListener):
 
 class MySftpSave(sublime_plugin.EventListener):
 	def on_post_save(self,view):
-		view.run_command("put_sftp", {"file" : "", "flag" : False })
+		view.run_command("put_sftp", {"file" : view.file_name(), "flag" : False })
 	def on_close(self,view):
 		ruta = view.file_name()
 		if os.path.dirname(ruta) == tmp_dir and view.is_dirty() == False:
@@ -432,7 +431,7 @@ class putSftp(sublime_plugin.TextCommand):
 		if flag == True:
 			ruta = file.replace(".sftp", "")
 		else:
-			ruta = self.view.window().active_view().file_name()
+			ruta = file
 
 		if os.path.dirname(ruta) == tmp_dir:
 			#Es un archivo de la carpeta de temporales
@@ -479,9 +478,9 @@ class putSftp(sublime_plugin.TextCommand):
 
 			#Es un archivo de la carpeta de temporales
 			##############################################################################
-			salida = SFTP("cd " + currentPath + "\nls\n", tipo, "ls")
-			if salida.find(os.path.basename(ruta) + ".sftp") > 0:#Validamos que exista el archivo
-				salida = SFTP("cd " + currentPath + "\nget " + os.path.basename(ruta) + ".sftp" + " " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", tipo, "get")
+			#salida = SFTP("cd " + currentPath + "\nls\n", tipo, "ls")
+			salida = SFTP("cd " + currentPath + "\nget " + os.path.basename(ruta) + ".sftp" + " " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", tipo, "get")
+			if os.path.exists( tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" ):#Validamos que exista el archivo
 				nick_use = open(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" ,"r")
 				nick_current_use = nick_use.read()
 				nick_use.close()
@@ -492,15 +491,20 @@ class putSftp(sublime_plugin.TextCommand):
 			nick_use = open(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", "w")
 			nick_use.write(nick)
 			nick_use.close()
-			salida = SFTP("cd " + "\n" +  "put " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" + " " + currentPath + os.path.basename(ruta) + ".sftp", tipo, "put")
+
+			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
+			if flag == False:
+				now = datetime.datetime.now()
+				self.view.window().run_command("progress_bar", {"mensaje" : "\n" + now.strftime("%H:%M:%S") + "->Subiendo: " + ruta + " en " + path_put + os.path.basename(ruta), "change" : False, "loading" : True})
+				salida = SFTP("cd " + currentPath + "\n" +    "put " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" + " " + os.path.basename(ruta) + ".sftp"    + "\nput " + ruta + " " + path_put + os.path.basename(ruta), tipo, "put")
+			else:
+				salida = SFTP("cd " + currentPath + "\n" +  "put " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" + " " + currentPath + os.path.basename(ruta) + ".sftp", tipo, "put")
 
 			if 'nick_current_use' in locals():
 				if nick != nick_current_use:
 					os.remove(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp")
-			##############################################################################
-			if flag == False:
-				self.view.window().run_command("progress_bar", {"mensaje" : "\nSubiendo: " + ruta + " en " + path_put + os.path.basename(ruta), "change" : False, "loading" : True})
-				salida = SFTP("cd " + "\n" +  "put " + ruta + " " + path_put + os.path.basename(ruta), tipo, "put")
+
+			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
 			if salida == "permission denied":
 				self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tienes los permisos necesarios para escribir sobre el archivo", "change" : False, "loading" : True})
 				return
