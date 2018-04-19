@@ -57,3 +57,8 @@ Estado
 -------------------
 
 En Desarrollo :computer: :coffee:
+
+Notas
+-------------------
+
+Se recomienda hacer un respaldo antes de empezar a usar ya que este se encuentra en una fase inicial de desarrollo y puede dañar sus documentos.
