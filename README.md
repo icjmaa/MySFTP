@@ -1,6 +1,8 @@
 MySFTP
 ================
 
+[![Build Status](https://github.com/icjmaa/MySFTP)
+
 Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP [Develope for Juan Manuel](https://github.com/icjmaa)
     
     # Uso totalmente gratuito. 
@@ -25,7 +27,7 @@ Modo de uso.
     - **Eliminar Servidor :** Elimina las configuraciones de los servidores.
 
 - Conbinacion de Teclas
-    - Utilize la conbinación de teclas **Ctrl + Shift + L + S**, para listar los servidores configurados.
+    - Utilize la conbinación de teclas <kbd>Ctrl+Alt+L</kbd>,<kbd>Ctrl+Alt+S</kbd>, para listar los servidores configurados.
 
 ## Navegación
 
