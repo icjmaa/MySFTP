@@ -29,7 +29,7 @@ Modo de uso.
 
 ## Navegación
 
-1. De **Enter** sobre el servidor que desea trabajar, inmediatamente se listara el directorio asignado como prncipal en el archio de configuración.
+1. Pulse la tecla **Enter** sobre el servidor que desea trabajar, inmediatamente se listara el directorio asignado como prncipal en el archio de configuración.
 2. Puede escoger entre las siguientes opciones:
     - Cambiar de servidor.
     - Subir de nivel el directorio actual.
