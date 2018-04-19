@@ -56,4 +56,4 @@ Estado
 
 En Desarrollo :computer: :coffee:
 
-[![Build Status](https://github.com/icjmaa/MySFTP)
+[![Build Status](https://img.shields.io/travis/SublimeLinter/SublimeLinter/master.svg)](https://github.com/icjmaa/MySFTP)
