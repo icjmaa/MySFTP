@@ -50,6 +50,7 @@ Modo de uso.
     
     \( Las ultimas 4 opciones requieren permisos en servidores linux \)
 4. Si selecciona un directorio se desplegara el mismo menu del paso 2.
+
 Estado
 -------------------
 
