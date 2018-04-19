@@ -38,6 +38,7 @@ Modo de uso.
     - Renombrar el directorio actual.
     - Cambiar permisos al directorio actual.
     - Eliminar eliminar el directorio actual.
+    
     \( Las ultimas 6 opciones requieren permisos en servidores linux \)
 3. Si selecciona un archivo de la lista podra realizar las siguientes acciones:
     - Cambiar de servidor.
@@ -46,6 +47,7 @@ Modo de uso.
     - Renombrar el archivo en el servidor.
     - Cambiar permisos para el archivo seleccionado.
     - Eliminar archivo seleccionado en el servidor.
+    
     \( Las ultimas 4 opciones requieren permisos en servidores linux \)
 4. Si selecciona un directorio se desplegara el mismo menu del paso 2.
 Estado
