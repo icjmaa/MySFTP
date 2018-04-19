@@ -5,6 +5,7 @@ Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP
 
 # Modo de uso.
 
+- Conbinacion de Teclas
     - Utilize la conbinación de teclas Ctrl + Shift + L + S
 
 # Estado
