@@ -3,7 +3,7 @@ MySFTP
 
 Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP
     
-    # Uso totalmente gratuito.
+    # Uso totalmente gratuito. :muscle: :sunglasses: :punch:
 
 Modo de uso.
 -------------------
@@ -28,4 +28,4 @@ Modo de uso.
 Estado
 -------------------
 
-En Desarrollo
+En Desarrollo :computer: :coffee:
