@@ -1,11 +1,11 @@
 MySFTP
 ================
 
-Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP
+Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP [Develope for Juan Manuel](https://github.com/icjmaa)
     
     # Uso totalmente gratuito. 
 :muscle: :sunglasses: :punch:
-<p align="center"><img src ="https://upload.wikimedia.org/wikipedia/en/d/d2/Sublime_Text_3_logo.png"/></p>
+<p align="center"><img src ="https://upload.wikimedia.org/wikipedia/en/d/d2/Sublime_Text_3_logo.png" width="128px"/></p>
 
 Modo de uso.
 -------------------
@@ -27,6 +27,27 @@ Modo de uso.
 - Conbinacion de Teclas
     - Utilize la conbinación de teclas **Ctrl + Shift + L + S**, para listar los servidores configurados.
 
+## Navegación
+
+1. De **Enter** sobre el servidor que desea trabajar, inmediatamente se listara el directorio asignado como prncipal en el archio de configuración.
+2. Puede escoger entre las siguientes opciones:
+    - Cambiar de servidor.
+    - Subir de nivel el directorio actual.
+    - Crear un archivo nuevo en el directorio actual.
+    - Crear una nueva carpeta en el directorio actual.
+    - Renombrar el directorio actual.
+    - Cambiar permisos al directorio actual.
+    - Eliminar eliminar el directorio actual.
+    \( Las ultimas 6 opciones requieren permisos en servidores linux \)
+3. Si selecciona un archivo de la lista podra realizar las siguientes acciones:
+    - Cambiar de servidor.
+    - Regresar a la lista anterior.
+    - Editar, se abrira en una pestaña nueva, cuando se guarde automaticamente este se actualizara en el servidor.
+    - Renombrar el archivo en el servidor.
+    - Cambiar permisos para el archivo seleccionado.
+    - Eliminar archivo seleccionado en el servidor.
+    \( Las ultimas 4 opciones requieren permisos en servidores linux \)
+4. Si selecciona un directorio se desplegara el mismo menu del paso 2.
 Estado
 -------------------
 
