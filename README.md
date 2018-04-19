@@ -1,8 +1,6 @@
 MySFTP
 ================
 
-[![Build Status](https://github.com/icjmaa/MySFTP)
-
 Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP [Develope for Juan Manuel](https://github.com/icjmaa)
     
     # Uso totalmente gratuito. 
@@ -57,3 +55,5 @@ Estado
 -------------------
 
 En Desarrollo :computer: :coffee:
+
+[![Build Status](https://github.com/icjmaa/MySFTP)
