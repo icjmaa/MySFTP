@@ -1,11 +1,13 @@
 # MySFTP
 -------------------
+
 Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP
     
     # Uso totalmente gratuito.
 
 # Modo de uso.
 -------------------
+
 - Desde el menu de Sublime Text: Archivo > MySftp
     - **Nuevo Servidor :** Creamos un archivo de configuración para la conexion SFTP/FTP con nuestro servidor.
         - **Nick :** Nombre de usuario que ocupara los archivo.
@@ -25,4 +27,5 @@ Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP
 
 # Estado
 -------------------
+
 En Desarrollo
