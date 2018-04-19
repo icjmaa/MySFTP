@@ -6,6 +6,8 @@ Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP
     # Uso totalmente gratuito. 
 :muscle: :sunglasses: :punch:
 
+![alt text](https://en.wikipedia.org/wiki/Sublime_Text#/media/File:Sublime_Text_3_logo.png "Sublime Text")
+
 Modo de uso.
 -------------------
 
