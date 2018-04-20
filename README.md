@@ -12,26 +12,26 @@ Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP [Deve
 Modo de uso.
 -------------------
 
-- Desde el menu de Sublime Text: Archivo > MySftp
-    - **Nuevo Servidor :** Creamos un archivo de configuración para la conexion SFTP/FTP con nuestro servidor.
+- Desde el menú de Sublime Text: Archivo > MySftp
+    - **Nuevo Servidor :** Creamos un archivo de configuración para la conexión SFTP/FTP con nuestro servidor.
         - **Nick :** Nombre de usuario que ocupara los archivo.
-        - **type :** Tipo de conexion con el servidor (SFTP o FTP).
+        - **type :** Tipo de conexión con el servidor (SFTP o FTP).
         - **host :** IP(v4) o Nombre de dominio del servidor al que se desea conectar.
-        - **user :** Nombre de usuario con el que va a logearse para realizar la conexion.
+        - **user :** Nombre de usuario con el que va a logearse para realizar la conexión.
         - **password :** Contraseña con la que va a logearse el usuario antes asignado para el logeo.
-        - **port :** Puerto que se va utilizar para la conexion por defecto 22 para SFTP y 21 para FTP.
+        - **port :** Puerto que se va utilizar para la conexión por defecto 22 para SFTP y 21 para FTP.
         - **remote_path :** Ruta principal del servidor que va a listarse.
 
     - **Listar Servidor :** Lista los servidores previamente configurados. 
-    - **Editar Servidor :** Nos permite realizar cambios en la configuracion de los servidores existentes.
+    - **Editar Servidor :** Nos permite realizar cambios en la configuración de los servidores existentes.
     - **Eliminar Servidor :** Elimina las configuraciones de los servidores.
 
 - Conbinacion de Teclas
-    - Utilize la conbinación de teclas <kbd>Ctrl+Alt+L</kbd> , <kbd>Ctrl+Alt+S</kbd>, para listar los servidores configurados.
+    - Utilice la combinación de teclas <kbd>Ctrl+Alt+L</kbd> , <kbd>Ctrl+Alt+S</kbd>, para listar los servidores configurados.
 
 ## Navegación
 
-1. Pulse la tecla **Enter** sobre el servidor que desea trabajar, inmediatamente se listara el directorio asignado como prncipal en el archio de configuración.
+1. Pulse la tecla **Enter** sobre el servidor que desea trabajar, inmediatamente se listara el directorio asignado como principal en el archivo de configuración.
 2. Puede escoger entre las siguientes opciones:
     - Cambiar de servidor.
     - Subir de nivel el directorio actual.
@@ -42,16 +42,16 @@ Modo de uso.
     - Eliminar eliminar el directorio actual.
     
     \( Las ultimas 6 opciones requieren permisos en servidores linux \)
-3. Si selecciona un archivo de la lista podra realizar las siguientes acciones:
+3. Si selecciona un archivo de la lista podrá realizar las siguientes acciones:
     - Cambiar de servidor.
     - Regresar a la lista anterior.
-    - Editar, se abrira en una pestaña nueva, cuando se guarde automaticamente este se actualizara en el servidor.
+    - Editar, se abrirá en una pestaña nueva, cuando se guarde automáticamente este se actualizara en el servidor.
     - Renombrar el archivo en el servidor.
     - Cambiar permisos para el archivo seleccionado.
     - Eliminar archivo seleccionado en el servidor.
     
     \( Las ultimas 4 opciones requieren permisos en servidores linux \)
-4. Si selecciona un directorio se desplegara el mismo menu del paso 2.
+4. Si selecciona un directorio se desplegara el mismo menú del paso 2.
 
 Estado
 -------------------
