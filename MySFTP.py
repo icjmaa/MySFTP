@@ -11,8 +11,6 @@ import platform
 #Libreria para sftp desde Linux(Ubuntu)
 from .sshpass import ssh_exec_pass
 import datetime
-import zipfile
-import datetime
 
 global Pref, s, Cache
 Cache = {}
@@ -333,8 +331,11 @@ class putSftp(sublime_plugin.TextCommand):
 				path_put = file_path.read()
 				file_path.close()
 
+				json_config = open( os.path.splitext(ruta)[0] + ".config" , "r")
+				json_file = json.loads(json_config.read())#leemos el archivo de configuración
+				json_config.close()
 				if host == '' or usuario == '' or password == '' or host != json_file[0]["host"] or usuario != json_file[0]["user"] or password != json_file[0]["password"]:
-					self.window.run_command('set_config', {'file_json' : os.path.splitext(ruta)[0] + ".config"});
+					self.view.window().run_command('set_config', {'file_json' : os.path.splitext(ruta)[0] + ".config"});
 					if flag_config != True:
 						return
 
@@ -431,9 +432,9 @@ class newDirSftp(sublime_plugin.WindowCommand):
 			currentPath = currentPath + "/" + name_dir
 			self.window.run_command("show_ls",{"args" : salida});
 
-class EditServer(sublime_plugin.WindowCommand):
+class ServerManager(sublime_plugin.WindowCommand):
 	listServers = []
-	def run(self):
+	def run(self, action):
 		global mydir
 		global listServers
 		mydir = sublime.packages_path() + "/User"
@@ -444,22 +445,10 @@ class EditServer(sublime_plugin.WindowCommand):
 
 	def on_done(self,index):
 		if index > 0:
-			self.window.open_file(mydir + diagonal + listServers[index] + ".json")
-
-class DeleteServer(sublime_plugin.WindowCommand):
-	listServers = []
-	def run(self):
-		global mydir
-		global listServers
-		mydir = sublime.packages_path() + "/User"
-		listServers = get_list_servers()
-		quick_list = [option for option in listServers]
-		self.quick_list = quick_list
-		self.window.show_quick_panel(quick_list,self.on_done,0)
-
-	def on_done(self,index):
-		if index != -1:
-			os.remove(mydir + diagonal + listServers[index] + ".json")
+			if action == 'edit':
+				self.window.open_file(mydir + diagonal + listServers[index] + ".json")
+			elif action == 'remove':
+				os.remove(mydir + diagonal + listServers[index] + ".json")
 
 class NewServer(sublime_plugin.WindowCommand):
 	def run(self):
@@ -525,62 +514,47 @@ def SFTP(comando, type = "sftp", cmd = ""):
 	global tipo
 	salida = ""
 
+	array_comando = comando.split("\n")[1]
+	if array_comando != "ls":
+		try:
+			file_server = array_comando.split(' ')[1 if cmd == "get" and cmd != "put" else 2]
+			file_local = array_comando.split(' ')[2 if cmd == "get" and cmd != "put" else 1]
+			file_name = array_comando.split(' ')[2 if cmd =="chmod" and cmd != "del" else 1]
+		except IndexError:
+			print("Oops! Algun indice incorrecto")
+		if cmd == "chmod":
+			permisos = array_comando.split(' ')[1]
+		elif cmd == "mv":
+			current_name = array_comando.split(' ')[1]
+			last_name = array_comando.split(' ')[2]
+		elif cmd == "rmdir" or cmd == "mkdir":
+			dir_name = array_comando.split(' ')[1]
+
 	if tipo == "sftp":
 		if platform.system() == "Linux":
 			#sublime.message_dialog( platform.system() )
 			if cmd == "ls":
 				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + " && ls -lrt | sed '/ \.$/d' | sed '/ \.\.$/d'"], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "get":
-				array_comando = comando.split("\n")[1]
-				file_server = array_comando.split(' ')[1]
-				file_local = array_comando.split(' ')[2]
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nget " + file_server + " " + file_local], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "put":
-				array_comando = comando.split("\n")[1]
-				file_local = array_comando.split(' ')[1]
-				file_server = array_comando.split(' ')[2]
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nput " + file_local + " " + file_server], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "chmod":
-				array_comando = comando.split("\n")[1]
-				permisos = array_comando.split(' ')[1]
-				file_name = array_comando.split(' ')[2]
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nchmod " + permisos + " " + file_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "mv":
-				array_comando = comando.split("\n")[1]
-				current_name = array_comando.split(' ')[1]
 				last_name = array_comando.split(' ')[2]
-
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrename " + current_name + " " + last_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
-
 			elif cmd == "rmdir":
-				array_comando = comando.split("\n")
-				dir_name = array_comando[1].split(' ')[1]
-
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrmdir " + dir_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			elif cmd == "del":
-				array_comando = comando.split("\n")
-				file_name = array_comando[1].split(' ')[1]
-
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrm " + file_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
-
 			elif cmd == "mkdir":
-				array_comando = comando.split("\n")
-				dir_name = array_comando[1].split(' ')[1]
-
 				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nmkdir " + dir_name], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
-
 				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + dir_name + " && ls -lrt  | sed '/ \.$/d' | sed '/ \.\.$/d'"], True)
-				salida = str( retorno[1].decode('utf-8', 'ignore') )
 			else:
 				sublime.message_dialog("Comando incorrecto")
+
+			salida = str( retorno[1].decode('utf-8', 'ignore') )
 
 			if salida.find("Could not resolve hostname") != -1:
 				print(salida)
@@ -602,18 +576,17 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				if proceso.stdout == None:
 					with open(sublime.packages_path() + "\\MySFTP\\data.out","r") as content_file:
 						content = content_file.read()
-					proceso.stderr.close()
-					errores = errores.decode(sys.getdefaultencoding())
-					print("Errores: " + errores)
 					salida = content
 					os.remove( sublime.packages_path() + "\\MySFTP\\data.out" )
 				else:
 					salida = proceso.stdout.read()
-					proceso.stderr.close()
 					proceso.stdout.close()
-					errores = errores.decode(sys.getdefaultencoding())
-					print("Errores: " + errores)
 					salida = salida.decode(sys.getdefaultencoding()) #Salida del comando
+
+				proceso.stderr.close()
+				errores = errores.decode(sys.getdefaultencoding())
+				if errores.find("Using username") == -1:
+					print("Errores: " + errores)
 			except subprocess.TimeoutExpired as e:
 				salida = "Usuario o password incorrectos."
 				print("Ocurrio esto")
@@ -633,63 +606,36 @@ def SFTP(comando, type = "sftp", cmd = ""):
 		ftp.login(usuario, password)
 		ftp.cwd(currentPath)
 		data = []
+		array_comando = comando.split("\n")[1]
+
 		if cmd == "ls":
 			ftp.dir(data.append)
-			ftp.quit()
 			for item in data:
 				salida = salida + item + "\n"
 		elif cmd == "get":
-			array_comando = comando.split("\n")[1]
-			file_server = array_comando.split(' ')[1]
-			file_local = array_comando.split(' ')[2]
 			fhandle = open(file_local, 'wb')
 			ftp.retrbinary('RETR ' + file_server , fhandle.write)
 			fhandle.close()
-
-			ftp.quit()
 		elif cmd == "put":
-			array_comando = comando.split("\n")[1]
-			file_local = array_comando.split(' ')[1]
-			file_server = array_comando.split(' ')[2]
 			with open(file_local, "rb") as f:
 				ftp.storlines("STOR " + file_server, f)
-
-			ftp.quit()
 		elif cmd == "chmod":
-			array_comando = comando.split("\n")[1]
-			permisos = array_comando.split(' ')[1]
-			file_name = array_comando.split(' ')[2]
 			salida = ftp.sendcmd("SITE CHMOD " + permisos + " " + file_name)
-
-			ftp.quit()
 		elif cmd == "mv":
-			array_comando = comando.split("\n")[1]
-			current_name = array_comando.split(' ')[1]
-			last_name = array_comando.split(' ')[2]
 			salida = ftp.rename(current_name, last_name)
-
-			ftp.quit()
 		elif cmd == "rmdir":
-			array_comando = comando.split("\n")
-			dir_name = array_comando[1].split(' ')[1]
 			ftp.rmd(dir_name)
-			ftp.quit()
 		elif cmd == "del":
-			array_comando = comando.split("\n")
-			file_name = array_comando[1].split(' ')[1]
 			ftp.delete(file_name)
-			ftp.quit()
 		elif cmd == "mkdir":
-			array_comando = comando.split("\n")
-			dir_name = array_comando[1].split(' ')[1]
 			ftp.mkd(dir_name)
 			ftp.cwd(dir_name)
 			ftp.dir(data.append)
-			ftp.quit()
 			for item in data:
 				salida = salida + item + "\n"
 		else:
 			sublime.message_dialog("Comando incorrecto")
+		ftp.quit()
 
 	# if contador_uso > 9:
 	# 	if sublime.message_dialog("Ni verga tienes que pagarme"):
@@ -754,16 +700,10 @@ class SetConfig(sublime_plugin.TextCommand):
 
 		if usuario == None or usuario == '':
 			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
-			flag_config = False
-			return
 		if host == None or host == '':
 			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
-			flag_config = False
-			return
 		if password == None or password == '':
 			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el password en el archivo de configuración"})
-			flag_config = False
-			return
 		if usuario == None or usuario == '' or host == None or host == '' or password == None or password == '': 
 			flag_config = False
 			return
