@@ -46,28 +46,6 @@ class MySftp(sublime_plugin.TextCommand):
 		global tmp_dir
 		#sublime.message_dialog( str(datetime.datetime.now()) )
 		mydir = sublime.packages_path() + "/User"
-		# print("------------------------------------------------------------------------------------------")
-		# content = None
-		# sublime_package = "MySFTP.sublime-package"
-		# packages_path = sublime.installed_packages_path()
-		# print(packages_path + sublime_package)
-		# if content is None:
-		# 	if os.path.exists(os.path.join(packages_path, sublime_package)):
-		# 		content = _get_zip_item_content(os.path.join(packages_path, sublime_package), "README.md", False, "utf-8")
-		# 		#print(content)
-		# print("------------------------------------------------------------------------------------------")
-		# if os.path.dirname(os.path.abspath(__file__)).find("sublime-package") != -1:
-		# 	zip_ref = zipfile.ZipFile(os.path.dirname(os.path.abspath(__file__)), 'r')
-		# 	if not os.path.exists(sublime.packages_path() + "/MySFTP/Monokai.tmTheme"):
-		# 		zip_ref.extract("Monokai.tmTheme",sublime.packages_path() + "/MySFTP")
-		# 	if not os.path.exists(sublime.packages_path() + "/MySFTP/MySFTP.tmLanguage"):
-		# 		zip_ref.extract("MySFTP.tmLanguage",sublime.packages_path() + "/MySFTP")
-
-		# 	for name in zip_ref.namelist():
-		# 		if name.startswith('bin/') and not os.path.exists(sublime.packages_path() + "/MySFTP/" + name):
-		# 			zip_ref.extract(name,sublime.packages_path() + "/MySFTP")
-		# 	zip_ref.close()
-
 		if platform.system() == "Linux":
 			diagonal = "/"
 			tmp_dir = mydir + diagonal + "tmp_my_sftp"
@@ -733,19 +711,6 @@ class SideBar(sublime_plugin.WindowCommand):
 
 	def is_enabled(self, paths = []):
 		return False
-
-def _get_zip_item_content(path_to_zip, resource, return_binary, encoding):
-	if not os.path.exists(path_to_zip):
-		return None
-
-	ret_value = None
-
-	with zipfile.ZipFile(path_to_zip) as zip_file:
-		namelist = zip_file.namelist()
-		if resource in namelist:
-			ret_value = zip_file.read(resource)
-
-	return ret_value
 
 def get_list_servers():
 	archivos = []
