@@ -42,7 +42,6 @@ class MySftp(sublime_plugin.TextCommand):
 		global mydir
 		global diagonal
 		global tmp_dir
-		#sublime.message_dialog( str(datetime.datetime.now()) )
 		mydir = sublime.packages_path() + "/User"
 		if platform.system() == "Linux":
 			diagonal = "/"
@@ -102,7 +101,7 @@ class showServers(sublime_plugin.WindowCommand):
 			self.window.run_command("show_ls",{"args" : salida});
 
 class showLs(sublime_plugin.WindowCommand):
-	def run(self,args):
+	def run(self, args):
 		global list_files
 		global optionsFolders
 		global currentPath
@@ -151,9 +150,8 @@ class showLs(sublime_plugin.WindowCommand):
 				quick_list = [option for option in self.Options]
 				self.quick_list = quick_list
 				self.window.show_quick_panel(quick_list,lambda id : self.file_selected(id,index - 8, args),0)
-		if index == 1: #change server
-			self.window.run_command("my_sftp");
-		elif index == 2:# Up Level
+
+		if index == 2: # Up Level
 			upLevel = os.path.normpath(os.path.join(currentPath,"../")).replace("\\", "/") + "/"
 			self.window.run_command("progress_bar", {"mensaje" : "\nListando el directorio: " + upLevel})
 			currentPath = upLevel
@@ -162,36 +160,24 @@ class showLs(sublime_plugin.WindowCommand):
 				self.window.run_command("progress_bar", {"mensaje" : "    error\nImposible conectar con el servidor por el momento."})
 				return
 			currentPath = upLevel
-			self.window.run_command("show_ls",{"args" : salida});
-		elif index == 3:# Nuevo Archivo
-			self.window.run_command("new_file_sftp")
-		elif index == 4:# Nuevo directorio
-			self.window.run_command("new_dir_sftp")
-		elif index == 5:# Renombrar
-			self.window.run_command("rename_sftp", {"archivo" : currentPath})
-		elif index == 6:# Cambiar Permisos
-			self.window.run_command("chmod_sftp", {"filename" : currentPath})
-		elif index == 7:# Eliminar
-			self.window.run_command("remove_sftp", {"file" : currentPath, "is_file" : False})
+
+		commams_folders = [['my_sftp', {}], ['show_ls', {"args" : salida}], ['new_file_sftp', {}], ['new_dir_sftp', {}],
+							['rename_sftp', {"archivo" : currentPath}], ['chmod_sftp', {"filename" : currentPath}],
+							['remove_sftp', {"file" : currentPath, "is_file" : False}]]
+		if index > 0:
+			self.window.run_command( commams_folders[index - 1][0], commams_folders[index - 1][1] );
 
 	def file_selected(self, index, index_file, args):
-		if index == 1: # Change server
-			self.window.run_command("my_sftp");
-		elif index == 2: #"Back to List"
-			self.window.run_command("show_ls",{"args" : args});
-		elif index == 3:#"Editar"
-			self.window.run_command("get_sftp", {"file" : list_files[index_file], "lista" : list_files})
-		elif index == 4:#"Renombrar"
-			self.window.run_command("rename_sftp", {"archivo" : list_files[index_file]})
-		elif index == 5:#"Cambiar Permisos"
-			self.window.run_command("chmod_sftp", {"filename" : list_files[index_file]})
-		elif index == 6:#"> Eliminar"
-			self.window.run_command("remove_sftp", {"file" : list_files[index_file], "is_file" : True})
+		commams_files = [['my_sftp',{}], ['show_ls', {'args' : args}], ['get_sftp', {"file" : list_files[index_file], "lista" : list_files}],
+						['rename_sftp', {"archivo" : list_files[index_file]}], ['chmod_sftp', {"filename" : list_files[index_file]}],
+						['remove_sftp', {"file" : list_files[index_file], "is_file" : True}]]
+		if index > 0:
+			self.window.run_command( commams_files[index - 1][0], commams_files[index - 1][1] )
 
-	def limpiarCadena(self,texto):
+	def limpiarCadena(self, texto):
 		ant = None
 		limpio = ""
-		for i in range(0,len(texto)):
+		for i in range(0, len(texto)):
 			if texto[i] == ant and texto[i] == ' ':
 				pass
 			else:
@@ -441,9 +427,9 @@ class ServerManager(sublime_plugin.WindowCommand):
 		listServers = get_list_servers()
 		quick_list = [option for option in listServers]
 		self.quick_list = quick_list
-		self.window.show_quick_panel(quick_list,self.on_done,0)
+		self.window.show_quick_panel(quick_list,lambda id : self.on_done(id, action),0)
 
-	def on_done(self,index):
+	def on_done(self, index, action):
 		if index > 0:
 			if action == 'edit':
 				self.window.open_file(mydir + diagonal + listServers[index] + ".json")
@@ -471,8 +457,8 @@ class MyInsertProgressBarCommand(sublime_plugin.TextCommand):
 		global cntLine
 		view = self.view
 		view.set_read_only(False)
-		view.settings().set("color_scheme","Packages/MySFTP/Monokai.tmTheme")
-		view.set_syntax_file("Packages/MySFTP/MySFTP.tmLanguage")
+		# view.settings().set("color_scheme", "Packages/MySFTP/Monokai.tmTheme")
+		view.set_syntax_file("MySFTP.tmLanguage")
 		point = self.view.text_point(cntLine, 0)
 		view.insert(edit, point, message)
 		view.set_read_only(True)
@@ -504,7 +490,6 @@ class ProgressBarCommand(sublime_plugin.WindowCommand):
 	def _destroy(self):
 		self.window.destroy_output_panel("progess_bar")
 
-#Función global SFTP
 def SFTP(comando, type = "sftp", cmd = ""):
 	global puerto
 	global usuario
