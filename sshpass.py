@@ -5,36 +5,20 @@ import sys
 _b = sys.version_info[0] < 3 and (lambda x:x) or (lambda x:x.encode('utf-8'))
 
 def ssh_exec_pass(password, args, capture_output=False):
-	'''
-		Wrapper around openssh that allows you to send a password to
-		ssh/sftp/scp et al similar to sshpass.
-		
-		Not super robust, but works well enough for most purposes. Typical
-		usage might be::
-		
-			ssh_exec_pass('p@ssw0rd', ['ssh', 'root@1.2.3.4', 'echo hi!'])
-		
-		:param args: A list of args. arg[0] must be the command to run.
-		:param capture_output: If True, suppresses output to stdout and stores
-							   it in a buffer that is returned
-		:returns: (retval, output)
-		
-		*nix only, tested on linux and OSX. Python 2.7 and 3.3+ compatible.
-	'''
-
 	import pty, select
-	
+	log = ['init']
 	# create pipe for stdout
 	stdout_fd, w1_fd = os.pipe()
 	stderr_fd, w2_fd = os.pipe()
 	
 	pid, pty_fd = pty.fork()
 	if not pid:
-		# in child
+		log.append("if Not pid")
+
 		os.close(stdout_fd)
 		os.close(stderr_fd)
-		os.dup2(w1_fd, 1)    # replace stdout on child
-		os.dup2(w2_fd, 2)    # replace stderr on child
+		os.dup2(w1_fd, 1)
+		os.dup2(w2_fd, 2)
 		os.close(w1_fd)
 		os.close(w2_fd)
 		
@@ -45,42 +29,46 @@ def ssh_exec_pass(password, args, capture_output=False):
 	
 	output = bytearray()
 	rd_fds = [stdout_fd, stderr_fd, pty_fd]
-	################################################################33
+
 	def _read(fd):
-		#print("Esto es fd: " + str(fd))
-		#print(rd_ready)
 		if fd not in rd_ready:
-			# print("retornarenmos")
 			return 
 
 		try:
 			data = os.read(fd, 128*1024)
 		except (OSError, IOError, Exception):
-			#print("crasho")
+
 			data = None
 
-		#print("Esto es data: " + str(data))
 		if not data:
-			#print("A chis los mariachis")
-			rd_fds.remove(fd) # EOF
+			rd_fds.remove(fd)
 		
 		return data
-	################################################################33
-	# Read data, etc
+
 	aux = False
 	try:
 		while rd_fds:
-			#print(select.select(rd_fds, [], [], 0.08))
-			rd_ready, _, _ = select.select(rd_fds, [], [], 1)
 
+			rd_ready, _, _ = select.select(rd_fds, [], [], 1)
+			
+			log.append("1. Status rd_ready:" + str(rd_ready))
+			if rd_ready == [] and args[2].find("ls -lrt") != -1:
+				limit = 0
+				while limit <= 10 and rd_ready == []:
+					rd_ready, _, _ = select.select(rd_fds, [], [], 1)	
+					limit = limit + 1	
+				log.append("2. Status rd_ready:" + str(rd_ready))
+			
 			if rd_ready:
 				# Deal with prompts from pty
 				data = _read(pty_fd)
 				if data is not None:
 					if b'assword:' in data:
 						os.write(pty_fd, _b(password + '\n'))
+						log.append("Se escribio la contraseña")
 					elif b're you sure you want to continue connecting' in data:
 						os.write(pty_fd, b'yes\n')
+						log.append("Se dijo que si se queria continuar")
 
 				
 				# Deal with stdout
@@ -88,7 +76,9 @@ def ssh_exec_pass(password, args, capture_output=False):
 				if data is not None:
 					if capture_output:
 						output.extend(data)
+						log.append("Data is not none y se agrega a la salida")
 					else:
+						log.append("Queee")
 						sys.stdout.write(data.decode('utf-8', 'ignore'))
 						
 				
@@ -97,18 +87,19 @@ def ssh_exec_pass(password, args, capture_output=False):
 					if rd_ready[0] == stderr_fd:
 						if b'onnected to' in data:
 							os.write(pty_fd, _b(args[2] + '\n'))
+							log.append("Se logro la conexion")
 					else:
 						sys.stderr.write(data.decode('utf-8', 'ignore'))
+						log.append("No se que pedorron")
 					if b'Could not resolve hostname' in data:
+						log.append("No se resolvio el nombre de dominio")
 						output.extend(data)
 			else:
+				log.append("Se hizo un break")
 				break
 	finally:
+		log.append("Crasheo")
 		os.close(pty_fd)
 		
 	pid, retval = os.waitpid(pid, 0)
-	return retval, output
-
-# if __name__ == '__main__':
-#     retval, _ = ssh_exec_pass(sys.argv[1], sys.argv[2:], False)
-#     exit(retval)
+	return retval, output, log
