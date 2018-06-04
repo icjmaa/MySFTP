@@ -36,12 +36,11 @@ cntLine = 0
 diagonal = "\\"
 
 flag_config = True
+str_json_config = ''
 
 class MySftp(sublime_plugin.TextCommand):
 	def run(self, edit):
-		global mydir
-		global diagonal
-		global tmp_dir
+		global mydir, diagonal, tmp_dir
 		mydir = sublime.packages_path() + "/User"
 		if platform.system() == "Linux":
 			diagonal = "/"
@@ -102,9 +101,7 @@ class showServers(sublime_plugin.WindowCommand):
 
 class showLs(sublime_plugin.WindowCommand):
 	def run(self, args):
-		global list_files
-		global optionsFolders
-		global currentPath
+		global list_files, optionsFolders, currentPath
 		list_files = []
 		lista = args.split("\n")
 
@@ -119,10 +116,10 @@ class showLs(sublime_plugin.WindowCommand):
 			if condicion:
 				name_file = cadena_limpia.split(" ")[8] + ( '/' if cadena_limpia[0] == 'd' else '' )
 
-				if name_file[0] != '.' and name_file[0][-1:] == '/':
+				if name_file[0] != '.' and name_file[0][-1:] == '/' and name_file.find('.sftp') == -1:
 					list_files.insert(cntAux, name_file)
 					cntAux = cntAux + 1
-				elif name_file[0] != '.' and name_file[0][-1:] != '/':
+				elif name_file[0] != '.' and name_file[0][-1:] != '/' and name_file.find('.sftp') == -1:
 					list_files.append(name_file)
 
 			list_files.sort()
@@ -226,9 +223,7 @@ class getSftp(sublime_plugin.TextCommand):
 		if "\n".join(lista).find(file + ".sftp") > 0:#Validamos que exista el archivo
 			salida = SFTP("cd " + currentPath + "\nget " + file + ".sftp" + " " + tmp_dir + diagonal + file + ".sftp", tipo, "get")
 			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
-				nick_use = open(tmp_dir + diagonal + file + ".sftp","r")
-				nick_current_use = nick_use.read()
-				nick_use.close()
+				nick_current_use =  readFile(tmp_dir + diagonal + file + '.sftp')
 				os.remove(tmp_dir + diagonal + file + ".sftp")
 
 				if nick_current_use != nick:
@@ -242,9 +237,7 @@ class getSftp(sublime_plugin.TextCommand):
 			sublime.message_dialog("Ya existe un archivo con el mismo nombre, cierre primero para poder continuar editando otro archivo con el mismo nombre.")
 			return
 		else:
-			nick_use = open(tmp_dir + diagonal + file + ".sftp","w")
-			nick_use.write(nick)
-			nick_use.close()
+			createFile(tmp_dir + diagonal + file + ".sftp", nick)
 			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
 			salida = SFTP("cd " + currentPath + "\nput " + tmp_dir + diagonal + file + ".sftp" + " " + os.path.basename(file) + ".sftp" + "\nget " + file + " " + tmp_dir + diagonal + file, tipo, "get")
 			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
@@ -253,13 +246,9 @@ class getSftp(sublime_plugin.TextCommand):
 			if salida == "permission denied":
 				self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tiene los permisos necesarios."})
 				return
-		aux_path = open(tmp_dir + diagonal + os.path.splitext(file)[0] + ".path","w")
-		aux_path.write(currentPath)
-		aux_path.close()
 
-		aux_config = open(tmp_dir + diagonal + os.path.splitext(file)[0] + ".config","w")
-		aux_config.write("[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host + "\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password + "\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]")
-		aux_config.close()
+		createFile(tmp_dir + diagonal + os.path.splitext(file)[0] + ".path", currentPath)
+		createFile(tmp_dir + diagonal + os.path.splitext(file)[0] + ".config", str_json_config)
 
 		#------------------------------------------------------
 		if createPanelOutput == False:
@@ -276,15 +265,14 @@ class getSftp(sublime_plugin.TextCommand):
 				view.run_command("my_insert_progress_bar", {"message" : show_progress_bar.message, "change" : show_progress_bar.change})
 		sublime.set_timeout_async(show_progress_bar, 1)
 
-class MySftpLoad(sublime_plugin.EventListener):
+class MySftpEvent(sublime_plugin.EventListener):
 	def on_load(self,view):
-		ruta = view.file_name()
-		if os.path.dirname(ruta) == tmp_dir:
+		if os.path.dirname(view.file_name()) == tmp_dir:
 			view.window().run_command("progress_bar", {"mensaje" : "success", "change" : True, "loading" : False})
 
-class MySftpSave(sublime_plugin.EventListener):
 	def on_post_save(self,view):
 		view.run_command("put_sftp", {"file" : view.file_name(), "flag" : False })
+
 	def on_close(self,view):
 		ruta = view.file_name()
 		if os.path.dirname(ruta) == tmp_dir and view.is_dirty() == False:
@@ -295,10 +283,7 @@ class MySftpSave(sublime_plugin.EventListener):
 
 class putSftp(sublime_plugin.TextCommand):
 	def run(self, edit, file , flag):
-		global mydir
-		global createPanelOutput
-		global tmp_dir
-		global diagonal
+		global mydir, createPanelOutput, tmp_dir, diagonal
 		mydir = sublime.packages_path() + "/User"
 
 		if platform.system() == "Linux":
@@ -310,13 +295,8 @@ class putSftp(sublime_plugin.TextCommand):
 		if os.path.dirname(ruta) == tmp_dir:
 			path_put = currentPath
 			if flag == False:
-				file_path = open( os.path.splitext(ruta)[0] + ".path" , "r")
-				path_put = file_path.read()
-				file_path.close()
-
-				json_config = open( os.path.splitext(ruta)[0] + ".config" , "r")
-				json_file = json.loads(json_config.read())#leemos el archivo de configuración
-				json_config.close()
+				path_put = readFile(os.path.splitext(ruta)[0] + ".path")
+				json_file = json.loads( readFile(os.path.splitext(ruta)[0] + ".config") )#leemos el archivo de configuración
 				if host == '' or usuario == '' or password == '' or host != json_file[0]["host"] or usuario != json_file[0]["user"] or password != json_file[0]["password"]:
 					self.view.window().run_command('set_config', {'file_json' : os.path.splitext(ruta)[0] + ".config"});
 					if flag_config != True:
@@ -331,16 +311,14 @@ class putSftp(sublime_plugin.TextCommand):
 
 			salida = SFTP("cd " + currentPath + "\nget " + os.path.basename(ruta) + ".sftp" + " " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", tipo, "get")
 			if os.path.exists( tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" ):#Validamos que exista el archivo
-				nick_use = open(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" ,"r")
-				nick_current_use = nick_use.read()
-				nick_use.close()
+				nick_current_use = readFile(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp")
+
 				if nick != nick_current_use and flag == False:
 					if not sublime.ok_cancel_dialog("El usuario " + nick_current_use + " esta usando actualmente el archivo, Deseas subir tus cambios?."):
 						self.view.window().run_command("progress_bar", {"mensaje" : "    Cancel."})
 						return
-			nick_use = open(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", "w")
-			nick_use.write(nick)
-			nick_use.close()
+
+			createFile(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", nick)
 
 			if flag == False:
 				now = datetime.datetime.now()
@@ -379,16 +357,9 @@ class newFileSftp(sublime_plugin.WindowCommand):
 		if os.path.isfile(tmp_dir + diagonal + name_file):
 			sublime.message_dialog("Ya existe el archivo")
 		else:
-			new_file = open(tmp_dir + diagonal + name_file ,"w")
-			new_file.close()
-
-			aux_path = open(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".path","w")
-			aux_path.write(currentPath)
-			aux_path.close()
-
-			aux_config = open(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".config","w")
-			aux_config.write("[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host + "\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password + "\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]")
-			aux_config.close()
+			createFile(tmp_dir + diagonal + name_file, '')
+			createFile(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".path", currentPath)
+			createFile(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".config", str_json_config)
 
 			def esperando():
 				vista = self.window.open_file(tmp_dir + diagonal + name_file)
@@ -418,8 +389,7 @@ class newDirSftp(sublime_plugin.WindowCommand):
 class ServerManager(sublime_plugin.WindowCommand):
 	listServers = []
 	def run(self, action):
-		global mydir
-		global listServers
+		global mydir, listServers
 		mydir = sublime.packages_path() + "/User"
 		listServers = get_list_servers()
 		quick_list = [option for option in listServers]
@@ -435,7 +405,6 @@ class ServerManager(sublime_plugin.WindowCommand):
 
 class NewServer(sublime_plugin.WindowCommand):
 	def run(self):
-		global contador_uso
 		vista = self.window.new_file()
 		self.window.run_command('insert_snippet',{"contents": "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"${1:[ip_host:host_name]}\",\n\t\"user\" : \"${2:usuario}\",\n\t\"password\" : \"${3:contraseña}\",\n\t\"port\" : \"${4:puerto}\",\n\t\"remote_path\" : \"${5:/var/www/html/}\"\n}]"})
 		vista.set_syntax_file("Packages/JavaScript/JSON.sublime-syntax")
@@ -488,12 +457,7 @@ class ProgressBarCommand(sublime_plugin.WindowCommand):
 		self.window.destroy_output_panel("progess_bar")
 
 def SFTP(comando, type = "sftp", cmd = ""):
-	global puerto
-	global usuario
-	global password
-	global host
-	global contador_uso
-	global tipo
+	global puerto, usuario, password, host, contador_uso, tipo
 	salida = ""
 
 	array_comando = comando.split("\n")[1]
@@ -558,9 +522,7 @@ def SFTP(comando, type = "sftp", cmd = ""):
 				return False
 		else:
 			try:
-				scrip_file = open(sublime.packages_path() + "\\User\\script.bat","w")
-				scrip_file.write(comando)
-				scrip_file.close()
+				createFile(sublime.packages_path() + "\\User\\script.bat", comando)
 
 				f = open(sublime.packages_path() + "\\MySFTP\\data.out","w")
 				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , sublime.packages_path() + "\\User\\script.bat", usuario + "@" + host], stdout=f, stderr=subprocess.PIPE, shell=True)
@@ -661,13 +623,23 @@ def get_list_servers():
 				archivos.append(filename)
 	return archivos
 
+def createFile(phat, content):
+	file = open(phat, 'w')
+	file.write(content)
+	file.close()
+
+def readFile(phat):
+	file = open(phat, 'r')
+	content = file.read()
+	file.close()
+	return content
+
+
 class SetConfig(sublime_plugin.TextCommand):
 	def run(self, edit, file_json):
-		global mydir, currentPath, puerto, usuario, nick, password, host, tipo
+		global mydir, currentPath, puerto, usuario, nick, password, host, tipo, str_json_config
 
-		json_config = open(file_json, 'r');
-		json_file = json.loads(json_config.read())
-		json_config.close()
+		json_file = json.loads( readFile(file_json) )
 
 		tipo = json_file[0]["type"]
 
@@ -692,6 +664,9 @@ class SetConfig(sublime_plugin.TextCommand):
 		if host != "" and host != json_file[0]["host"] and usuario != "" and usuario != json_file[0]["user"]:
 			currentPath = json_file[0]["remote_path"]
 
+		str_json_config = "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host +
+							"\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password +
+							"\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]"
 		if usuario == None or usuario == '':
 			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
 		if host == None or host == '':
