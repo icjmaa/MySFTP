@@ -1,4 +1,0 @@
-Actualizacion 1.0.1.
-============================================================================================================
-
-- Se asigna el directorio por defecto para guardar los archivos de configuracion de servidores .json en Packages/User
