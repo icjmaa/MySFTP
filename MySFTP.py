@@ -665,9 +665,7 @@ class SetConfig(sublime_plugin.TextCommand):
 		if host != "" and host != json_file[0]["host"] and usuario != "" and usuario != json_file[0]["user"]:
 			currentPath = json_file[0]["remote_path"]
 
-		str_json_config = "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host +
-							"\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password +
-							"\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]"
+		str_json_config = "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host + "\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password + "\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]"
 		if usuario == None or usuario == '':
 			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
 		if host == None or host == '':
