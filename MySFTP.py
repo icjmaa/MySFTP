@@ -408,7 +408,7 @@ class NewServer(sublime_plugin.WindowCommand):
 		vista = self.window.new_file()
 		self.window.run_command('insert_snippet',{"contents": "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"${1:[ip_host:host_name]}\",\n\t\"user\" : \"${2:usuario}\",\n\t\"password\" : \"${3:contraseña}\",\n\t\"port\" : \"${4:puerto}\",\n\t\"remote_path\" : \"${5:/var/www/html/}\"\n}]"})
 		vista.set_syntax_file("Packages/JavaScript/JSON.sublime-syntax")
-		vista.settings().set('default_dir', packages_path() + '/User')
+		vista.settings().set('default_dir', sublime.packages_path() + '/User')
 
 class renameSftp(sublime_plugin.WindowCommand):
 	def run(self,archivo):
