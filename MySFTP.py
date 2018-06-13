@@ -275,7 +275,7 @@ class MySftpEvent(sublime_plugin.EventListener):
 
 	def on_close(self,view):
 		ruta = view.file_name()
-		if os.path.dirname(ruta) == tmp_dir and view.is_dirty() == False:
+		if ruta != None and os.path.dirname(ruta) == tmp_dir and view.is_dirty() == False:
 			view.run_command("remove_sftp", {"file" : os.path.basename(ruta) + ".sftp", "is_file" : True})
 			os.remove(ruta)
 			os.remove(os.path.splitext(ruta)[0] + ".path")
@@ -408,6 +408,7 @@ class NewServer(sublime_plugin.WindowCommand):
 		vista = self.window.new_file()
 		self.window.run_command('insert_snippet',{"contents": "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"${1:[ip_host:host_name]}\",\n\t\"user\" : \"${2:usuario}\",\n\t\"password\" : \"${3:contraseña}\",\n\t\"port\" : \"${4:puerto}\",\n\t\"remote_path\" : \"${5:/var/www/html/}\"\n}]"})
 		vista.set_syntax_file("Packages/JavaScript/JSON.sublime-syntax")
+		vista.settings().set('default_dir', sublime.packages_path() + "/User")
 
 class renameSftp(sublime_plugin.WindowCommand):
 	def run(self,archivo):
@@ -664,9 +665,7 @@ class SetConfig(sublime_plugin.TextCommand):
 		if host != "" and host != json_file[0]["host"] and usuario != "" and usuario != json_file[0]["user"]:
 			currentPath = json_file[0]["remote_path"]
 
-		str_json_config = "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host +
-							"\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password +
-							"\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]"
+		str_json_config = "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host + "\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password + "\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]"
 		if usuario == None or usuario == '':
 			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
 		if host == None or host == '':
