@@ -1,3 +1,74 @@
-Hola perros.
+MySFTP
+================
 
-Este plugin fue programado por tu Papá
+[![Build Status](https://img.shields.io/travis/SublimeLinter/SublimeLinter/master.svg)](https://github.com/icjmaa/MySFTP)
+
+Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP [Develope for Juan Manuel](https://github.com/icjmaa)
+    
+    # Uso totalmente gratuito.
+
+Apoyo a proyecto
+------------------
+Donación de $50.00 pesos - https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=275534989-c28626d6-b0fd-46bd-8b70-30e4d2144f0a
+
+Donación de $150.00 pesos - https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=275534989-c47f2492-8e41-4abb-be54-b92feb993095
+
+Donación de $300.00 pesos - https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=275534989-a53fcf28-9cac-4ccc-90e7-485f8b54a49b
+
+
+:muscle: :sunglasses: :punch:
+<p align="center"><img src ="https://upload.wikimedia.org/wikipedia/en/d/d2/Sublime_Text_3_logo.png" width="128px"/></p>
+
+Modo de uso.
+-------------------
+
+- Desde el menú de Sublime Text: Archivo > MySftp
+    - **Nuevo Servidor :** Creamos un archivo de configuración para la conexión SFTP/FTP con nuestro servidor.
+        - **Nick :** Nombre de usuario que ocupara los archivo.
+        - **type :** Tipo de conexión con el servidor (SFTP o FTP).
+        - **host :** IP(v4) o Nombre de dominio del servidor al que se desea conectar.
+        - **user :** Nombre de usuario con el que va a logearse para realizar la conexión.
+        - **password :** Contraseña con la que va a logearse el usuario antes asignado para el logeo.
+        - **port :** Puerto que se va utilizar para la conexión por defecto 22 para SFTP y 21 para FTP.
+        - **remote_path :** Ruta principal del servidor que va a listarse.
+
+    - **Listar Servidor :** Lista los servidores previamente configurados. 
+    - **Editar Servidor :** Nos permite realizar cambios en la configuración de los servidores existentes.
+    - **Eliminar Servidor :** Elimina las configuraciones de los servidores.
+
+- Conbinacion de Teclas
+    - Utilice la combinación de teclas <kbd>Ctrl+Alt+L</kbd> , <kbd>Ctrl+Alt+S</kbd>, para listar los servidores configurados.
+
+## Navegación
+
+1. Pulse la tecla **Enter** sobre el servidor que desea trabajar, inmediatamente se listara el directorio asignado como principal en el archivo de configuración.
+2. Puede escoger entre las siguientes opciones:
+    - Cambiar de servidor.
+    - Subir de nivel el directorio actual.
+    - Crear un archivo nuevo en el directorio actual.
+    - Crear una nueva carpeta en el directorio actual.
+    - Renombrar el directorio actual.
+    - Cambiar permisos al directorio actual.
+    - Eliminar eliminar el directorio actual.
+    
+    \( Las ultimas 6 opciones requieren permisos en servidores linux \)
+3. Si selecciona un archivo de la lista podrá realizar las siguientes acciones:
+    - Cambiar de servidor.
+    - Regresar a la lista anterior.
+    - Editar, se abrirá en una pestaña nueva, cuando se guarde automáticamente este se actualizara en el servidor.
+    - Renombrar el archivo en el servidor.
+    - Cambiar permisos para el archivo seleccionado.
+    - Eliminar archivo seleccionado en el servidor.
+    
+    \( Las ultimas 4 opciones requieren permisos en servidores linux \)
+4. Si selecciona un directorio se desplegara el mismo menú del paso 2.
+
+Estado
+-------------------
+
+En Desarrollo :computer: :coffee:
+
+Notas
+-------------------
+
+Se recomienda hacer un respaldo antes de empezar a usar ya que este se encuentra en una fase inicial de desarrollo y puede dañar sus documentos.
