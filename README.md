@@ -5,7 +5,15 @@ MySFTP
 
 Plugin de Sublime Text para manejo de archivos mediante conexión SFTP/FTP [Develope for Juan Manuel](https://github.com/icjmaa)
     
-    # Uso totalmente gratuito. 
+    # Uso totalmente gratuito.
+
+Apoyo a proyecto
+------------------
+Donación de $50.00 pesos - https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=275534989-c28626d6-b0fd-46bd-8b70-30e4d2144f0a
+Donación de $150.00 pesos - https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=275534989-c47f2492-8e41-4abb-be54-b92feb993095
+Donación de $300.00 pesos - https://www.mercadopago.com.mx/checkout/v1/redirect?pref_id=275534989-a53fcf28-9cac-4ccc-90e7-485f8b54a49b
+
+
 :muscle: :sunglasses: :punch:
 <p align="center"><img src ="https://upload.wikimedia.org/wikipedia/en/d/d2/Sublime_Text_3_logo.png" width="128px"/></p>
 
