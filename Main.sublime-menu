@@ -4,14 +4,14 @@
 		"children":
 		[
 			{
-				"caption": "My SFTP/FTP",
+				"caption": "My SFTP",
 				"mnemonic": "F",
 				"children":
 				[
 					{ "command": "new_server", "caption": "Nuevo Servidor…" },
 					{ "command": "my_sftp", "caption": "Listar Servidor…" },
 					{ "command": "server_manager", "caption": "Editar Servidor…", "args" : { "action" : "edit"}  },
-					{ "command": "server_manager", "caption": "Borrar Servidor…", "args" : { "action" : "edit"}  }
+					{ "command": "server_manager", "caption": "Borrar Servidor…", "args" : { "action" : "remove"}  }
 				]
 			}
 		]

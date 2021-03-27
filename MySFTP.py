@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+from threading import Thread
 import json
 import sublime
 import sublime_plugin
@@ -9,45 +10,107 @@ import re
 import ftplib
 import platform
 #Libreria para sftp desde Linux(Ubuntu)
-from .sshpass import ssh_exec_pass
+from .src.Configuration import Configuration
+from .src.Connection import Connection
+from .src.ProgressBar import ProgressBarCommand as ProgressBar, ShowProgressBarCommand
+from .src.extras import get_list_servers, sortFiles, createFile, readFile, Debug, getTmpName, getPath
 import datetime
+import shutil
 
-global Pref, s, Cache
-Cache = {}
+def plugin_loaded():
+	# Se crea el directorio del plugin
+	user_path = os.path.join(sublime.packages_path(), 'User')
+	Configuration.mysftp_path = os.path.join(user_path, 'MySFTP')
+	if not os.path.exists(Configuration.mysftp_path): os.makedirs(Configuration.mysftp_path)
 
-mydir = ""
-currentPath = ""
-tmp_dir = "C:\\tmp_my_sftp"
+	# Se crea el directorio para los archivos temporales
+	Configuration.tmp_path = os.path.join(Configuration.mysftp_path, 'tmp')
+	shutil.rmtree(Configuration.tmp_path)
+	if not os.path.exists(Configuration.tmp_path): os.makedirs(Configuration.tmp_path)
 
-tipo = "sftp"
-puerto = 21
-usuario = ""
-nick = ""
-password = ""
-host = "/home/"
+	# Se crea directorio para los archivos de configuración de servidores
+	Configuration.servers_path = os.path.join(Configuration.mysftp_path, 'servers')
+	if not os.path.exists(Configuration.servers_path): os.makedirs(Configuration.servers_path)
 
-optionsFiles = ["> Cambiar de Servidor", "> Regresar", "> Editar","> Renombrar","> Cambiar Permisos","> Eliminar"]
-optionsFolders = ["> Cambiar de Servidor", "> Subir nivel","> Nuevo Archivo","> Nueva Carpeta","> Renombrar","> Cambiar Permisos","> Eliminar"]
-contador_uso = 0
+	# Se crea directorio para psftp 
+	Configuration.psftp_path = os.path.join(Configuration.mysftp_path, 'psftp')
+	if not os.path.exists(Configuration.psftp_path): os.makedirs(Configuration.psftp_path)
 
-createPanelOutput = False
-cntLine = 0
+	Configuration.package_path = os.path.join(sublime.packages_path(), 'MySFTP')
 
-diagonal = "\\"
+	Debug.debug_file = os.path.join(Configuration.mysftp_path, '.debug')
 
-flag_config = True
-str_json_config = ''
+	MySftp.settings = sublime.load_settings("MySFTP.sublime-settings")
+	Debug.settings = MySftp.settings
+	# create custome file settings
+	if not os.path.exists(os.path.join(user_path, 'MySFTP.sublime-settings')):
+		json_settings = {'debug_mode': MySftp.settings.get('debug_mode'), 'debug_console': MySftp.settings.get('debug_console'), 'check_if_write': MySftp.settings.get('check_if_write')}
+		createFile(os.path.join(user_path, 'MySFTP.sublime-settings'), json.dumps(json_settings, indent='\t'))
+	Debug.print("DEBUG_MODE: ", str(MySftp.settings.get('debug_mode')))
+	Debug.print("DEBUG_CONSOLE: ", str(MySftp.settings.get('debug_console')))
+	Debug.print("CHECK_IF_WRITE: ", str(MySftp.settings.get('check_if_write')))
+
+	# Movemos los archivos de configuración servidores de la versión anterior al directorio servers
+	for file in os.listdir( user_path ):
+		full_name_file = os.path.join(user_path, file)
+		if os.path.isfile(full_name_file):
+			filename, file_extension = os.path.splitext(file)
+			if file_extension != ".json":
+				continue
+			file_content = readFile( full_name_file )
+			obj_match = re.findall(r"nick|type|host|remote_path|password|port|user", file_content)
+			if obj_match != None and len(obj_match) == 7:
+				shutil.move( full_name_file, os.path.join(Configuration.servers_path, file) )
+
+	createFile(os.path.join(Configuration.mysftp_path, '.debug'))
 
 class MySftp(sublime_plugin.TextCommand):
-	def run(self, edit):
-		global mydir, diagonal, tmp_dir
-		mydir = sublime.packages_path() + "/User"
-		if platform.system() == "Linux":
-			diagonal = "/"
-			tmp_dir = mydir + diagonal + "tmp_my_sftp"
+	listServers = []
+	optionsFiles = ["> Cambiar de Servidor", "> Regresar", "> Editar","> Renombrar","> Cambiar Permisos","> Eliminar"]
+	optionsFolders = ["> Cambiar de Servidor", "> Subir nivel","> Nuevo Archivo","> Nueva Carpeta","> Renombrar","> Cambiar Permisos","> Eliminar"]
 
-		archivos = get_list_servers()
+	settings = None
+
+	def run(self, edit):
+		archivos = get_list_servers(Configuration.servers_path)
 		self.view.window().run_command("show_servers", {"args" : archivos});
+
+	@staticmethod
+	def isWorking():
+		try:
+			is_alive = ShowProgressBarCommand.t != None and ShowProgressBarCommand.t.isAlive()
+			if is_alive:
+				raise Exception("threading isAlive")
+		except Exception as e:
+			sublime.message_dialog("Hay una operación en proceso, espere a que esta termine para continuar.")
+			raise e
+
+	@staticmethod
+	def checkResponse(self, response, show_status = True):
+		if not show_status:
+			return True
+		if response.find('Could not resolve hostname') != -1 or response.find('No route to host') != -1 or response.find('Network is unreachable') != -1 or response.find('Connection refused') != -1:
+			ProgressBar.showError(self)
+			ProgressBar.showMessage(self, 'Imposible conectar con el servidor, no se pudo resolver: {}.\n'.format(Configuration.host))
+			return False
+		elif response.find('Permission denied') != -1 or response.find('Could not create file') != -1:
+			ProgressBar.showErrorPermissions(self)
+			return False
+		elif response.find('Usuario o password incorrectos') != -1 or response.find('Login incorrect') != -1:
+			ProgressBar.showErrorCredentials(self)
+			return False
+		elif response.find('TimeOutExpired') != -1:
+			ProgressBar.showErrorTimeOutExpired(self)
+		elif response.find('o such file or directory') != -1:
+			ProgressBar.showErrorNoSuchFileOrDirectory(self)
+		elif response.find('PermissionError: [WinError 32]') != -1:
+			ProgressBar.showError(self)
+		elif response.find('No se puede establecer una conexión ya que el equipo de destino denegó expresamente') != -1:
+			ProgressBar.showConnectionRefuse(self)
+			return False
+		else:
+			ProgressBar.showSuccess(self)
+		return True
 
 class SyncFiles(sublime_plugin.WindowCommand):
 	def run(self, comando):
@@ -57,621 +120,426 @@ class SyncFiles(sublime_plugin.WindowCommand):
 			self.window.run_command("save");
 			return
 
-		self.window.run_command('set_config', {'file_json' : tmp_dir + diagonal + os.path.splitext(file)[0] + ".config"});
-		if flag_config != True:
+		Configuration.setConfig(os.path.join(Configuration.tmp_path, os.path.splitext(file)[0] + ".config"))
+		if Configuration.flag_config != True:
 			return
 
-		if createPanelOutput == False:
-			self.window.run_command("progress_bar", {"mensaje" : "Conectando con el servidor"})
-			self.window.run_command("progress_bar", {"mensaje" : "\nConectado en: " + host + " como: " + usuario})
+		if ProgressBar.createPanelOutput == False:
+			ProgressBar.initConnection(self)
 		self.window.run_command("get_sftp",{"file" : file, "flag" : True})
 
-	def is_visible(self, paths = []):
-		return False if os.path.dirname(self.window.active_view().file_name()) != tmp_dir else True
+	def is_visible(self):
+		return False if os.path.dirname(self.window.active_view().file_name()) != Configuration.tmp_path else True
 
 class showServers(sublime_plugin.WindowCommand):
-	def run(self,args):
-		global listServers
-		listServers = args
-		listServers.insert(0, "Nuevo servidor.")
-		quick_list = [option for option in listServers]
+	def run(self, args):
+		MySftp.isWorking();
+		MySftp.listServers = args
+		MySftp.listServers.insert(0, "Nuevo servidor.")
+		quick_list = [option for option in MySftp.listServers]
 		self.quick_list = quick_list
 		self.window.show_quick_panel(quick_list,self.on_done,0)
 
-	def on_done(self,index):
+	def on_done(self, index):
 		if index == 0:
 			self.window.run_command('new_server')
 		elif index > 0:
-			self.window.run_command('set_config', {'file_json' : mydir + diagonal + listServers[index] + ".json"});
-			if flag_config != True:
+			previous_config = Configuration( json.loads(Configuration.getJsonConfig()) )
+			Configuration.setConfig(os.path.join(Configuration.servers_path, MySftp.listServers[index] + ".json"))
+			if not Configuration.flag_config:
 				return
+			if previous_config.host == '' or previous_config.usuario == '' or previous_config.host != Configuration.host or previous_config.usuario != Configuration.usuario or previous_config.puerto != Configuration.puerto:
+				ProgressBar.initConnection(self)
 
-			if createPanelOutput == False:
-				self.window.run_command("progress_bar", {"mensaje" : "Conectando con el servidor"})
-				self.window.run_command("progress_bar", {"mensaje" : "\nConectado en: " + host + " como: " + usuario})
+			t1 = Thread(target=self.listado)
+			t1.start()
 
-			self.window.run_command("progress_bar", {"mensaje" : "\nListando el directorio: " + currentPath})
-			salida = SFTP("cd " + currentPath + "\nls\nbye\n", tipo, "ls")
-
-			if salida == False:
-				self.window.run_command("progress_bar", {"mensaje" : "    error\nImposible conectar con el servidor por el momento."})
-				return
-
-			self.window.run_command("show_ls",{"args" : salida});
+	def listado(self):
+		self.window.run_command("show_ls");
 
 class showLs(sublime_plugin.WindowCommand):
-	def run(self, args):
-		global list_files, optionsFolders, currentPath
-		list_files = []
-		lista = args.split("\n")
 
-		start = 1 if (platform.system() == "Linux" ) else 3
+	list_files = None
+	files_hiddens = None
 
-		cntAux = 0;
-		for item in range(start,len(lista) - 1):
-			list_files.sort()
-			file = lista[item]
-			cadena_limpia = self.limpiarCadena(file)
-			condicion = len(cadena_limpia.split(" ")) == 9
-			if condicion:
-				name_file = cadena_limpia.split(" ")[8] + ( '/' if cadena_limpia[0] == 'd' else '' )
+	def run(self):
+		MySftp.isWorking();
+		ProgressBar.showList(self)
+		t1 = Thread(target=self.requestListFiles)
+		t1.start()
 
-				if name_file[0] != '.' and name_file[0][-1:] == '/' and name_file.find('.sftp') == -1:
-					list_files.insert(cntAux, name_file)
-					cntAux = cntAux + 1
-				elif name_file[0] != '.' and name_file[0][-1:] != '/' and name_file.find('.sftp') == -1:
-					list_files.append(name_file)
+	def requestListFiles(self):
+		response = showLs.getListFiles(self, True)
+		if showLs.list_files != None and response != False:
+			self.Options = ["Directorio: " + Configuration.currentPath] + MySftp.optionsFolders + showLs.list_files
+			quick_list = [option for option in self.Options]
+			self.quick_list = quick_list
+			self.window.show_quick_panel(quick_list, lambda id : self.on_done(id), 0)
 
-			list_files.sort()
-
-		self.Options = ["Directorio: " + currentPath] + optionsFolders + list_files
-		quick_list = [option for option in self.Options]
-		self.quick_list = quick_list
-		self.window.show_quick_panel(quick_list,lambda id : self.on_done(id, args),0)
-
-	def on_done(self,index, args):
-		global currentPath
-		salida = ''
+	def on_done(self, index):
 		if index > 7:
-			if list_files[index - 8][-1:] == "/":
-				currentPath = currentPath + list_files[index - 8]
-				self.window.run_command("progress_bar", {"mensaje" : "\nListando el directorio: " + currentPath})
-				salida = SFTP("cd " + currentPath + "\nls\n", tipo, "ls")
-				self.window.run_command("show_ls",{"args" : salida});
+			if showLs.list_files[index - 8][-1:] == '/':
+				Configuration.currentPath = getPath(Configuration.currentPath, showLs.list_files[index - 8])
+				self.window.run_command("show_ls");
+			elif showLs.list_files[index - 8][-2:] == '->':
+				# no such file or directory
+				tmp_current_path = Configuration.currentPath
+				Configuration.currentPath = getPath(Configuration.currentPath, showLs.list_files[index - 8][:-2])
+				list_files_old = showLs.list_files
+				salida = showLs.getListFiles(self)
+				showLs.list_files = list_files_old
+				if salida != False and salida.find("no such file or directory") != -1:
+					Configuration.currentPath = tmp_current_path;
+					self.Options = [ "Archivo: " + showLs.list_files[index - 8][:-2] ] + MySftp.optionsFiles
+					quick_list = [option for option in self.Options]
+					self.quick_list = quick_list
+					self.window.show_quick_panel(quick_list, lambda id : self.file_selected(id, showLs.list_files[index - 8][:-2]), 0)
+				else:
+					Configuration.currentPath = tmp_current_pathn;
+					Configuration.currentPath = getPath(Configuration.currentPath, showLs.list_files[index - 8][:-2])
+					self.window.run_command("show_ls");
 			else:
-				self.Options = [ "Archivo: " + list_files[index - 8] ] + optionsFiles
+				self.Options = [ "Archivo: " + showLs.list_files[index - 8] ] + MySftp.optionsFiles
 				quick_list = [option for option in self.Options]
 				self.quick_list = quick_list
-				self.window.show_quick_panel(quick_list,lambda id : self.file_selected(id,index - 8, args),0)
-
+				self.window.show_quick_panel(quick_list, lambda id : self.file_selected(id, showLs.list_files[index - 8]), 0)
 		elif index == 2: # Up Level
-			upLevel = os.path.normpath(os.path.join(currentPath,"../")).replace("\\", "/") + "/"
-			self.window.run_command("progress_bar", {"mensaje" : "\nListando el directorio: " + upLevel})
-			currentPath = upLevel
-			salida = SFTP("cd " + upLevel + "\nls\n", tipo, "ls")
-			if salida == False:
-				self.window.run_command("progress_bar", {"mensaje" : "    error\nImposible conectar con el servidor por el momento."})
-				return
-			currentPath = upLevel
+			Configuration.currentPath = getPath(Configuration.currentPath, '../')
+			self.window.run_command("show_ls");
 		else:
-			commams_folders = [['my_sftp', {}], ['show_ls', {"args" : salida}], ['new_file_sftp', {}], ['new_dir_sftp', {}],
-								['rename_sftp', {"archivo" : currentPath}], ['chmod_sftp', {"filename" : currentPath}],
-								['remove_sftp', {"file" : currentPath, "is_file" : False}]]
-
+			commams_folders = [['my_sftp', {}], ['show_ls', {}], ['new_file_sftp', {}], ['new_dir_sftp', {}],
+								['rename_sftp', {"path" : os.path.basename(Configuration.currentPath), 'is_folder': True}], ['chmod_sftp', {"path" : os.path.basename(Configuration.currentPath), 'is_file': False}],
+								['remove_sftp', {"path" : os.path.basename(Configuration.currentPath), "is_file" : False}]]
 			if index > 0:
 				self.window.run_command( commams_folders[index - 1][0], commams_folders[index - 1][1] )
 
-	def file_selected(self, index, index_file, args):
-		commams_files = [['my_sftp',{}], ['show_ls', {'args' : args}], ['get_sftp', {"file" : list_files[index_file], "lista" : list_files}],
-						['rename_sftp', {"archivo" : list_files[index_file]}], ['chmod_sftp', {"filename" : list_files[index_file]}],
-						['remove_sftp', {"file" : list_files[index_file], "is_file" : True}]]
-		if index > 0:
+	def file_selected(self, index, file):
+		commams_files = [['my_sftp', {}], ['show_ls', {}], ['get_sftp', {"file" : file}],
+						['rename_sftp', {"path" : file}], ['chmod_sftp', {"path" : file}],
+						['remove_sftp', {"path" : file, "is_file" : True}]]
+		if index == 2:
+			self.Options = ["Directorio: " + Configuration.currentPath] + MySftp.optionsFolders + showLs.list_files
+			quick_list = [option for option in self.Options]
+			self.quick_list = quick_list
+			self.window.show_quick_panel(quick_list, lambda id : self.on_done(id), 0)
+		if index != 2 and index > 0:
 			self.window.run_command( commams_files[index - 1][0], commams_files[index - 1][1] )
 
-	def limpiarCadena(self, texto):
-		ant = None
-		limpio = ""
-		for i in range(0, len(texto)):
-			if texto[i] == ant and texto[i] == ' ':
-				pass
-			else:
-				if texto[i] != '\r':
-					limpio = limpio + texto[i]
-			ant = texto[i]
-		return limpio
+	@staticmethod
+	def getListFiles(self, show_status_connection = False):
+		salida = Connection.ls()
+		if show_status_connection:
+			if MySftp.checkResponse(self, salida, show_status_connection) != True: return False
+		lista = salida.strip("\n").split("\n")
+		listas = sortFiles(lista)
+		showLs.list_files = listas[0]
+		showLs.files_hiddens = listas[1]
+		return salida
 
+class ChmodSftp(sublime_plugin.WindowCommand):
 
-class chmod_sftp(sublime_plugin.WindowCommand):
-	def run(self, filename):
-		self.window.show_input_panel("Permisos:", "", lambda permisos: self.chmod(permisos,filename), None, None)
-	def chmod(self, permisos, filename):
+	def run(self, path, is_file = True):
+		self.window.show_input_panel("Permisos:", "", lambda permisos: self.chmod(permisos, path, is_file), None, None)
+
+	def chmod(self, permisos, path, is_file = True):
 		if re.match("[1-7]{3}", permisos) != None:
-			self.window.run_command("progress_bar", {"mensaje" : "\nCambiando permisos al archivo: " + currentPath + filename})
-			salida = SFTP("cd " + currentPath + "\nchmod " + permisos + " " + filename, tipo, "chmod")
-			if salida == "permission denied":
-				self.window.run_command("progress_bar", {"mensaje" : "    error\nNo tiene los permisos necesarios."})
+			burbuja = Configuration.currentPath
+			if not is_file:
+				Configuration.currentPath = os.path.dirname(Configuration.currentPath)
+
+			ProgressBar.showChmod(self, getPath(Configuration.currentPath, path))
+			t1 = Thread(target=self.hilo, args=[permisos, path, burbuja])
+			t1.start()
 		else:
-			sublime.message_dialog("Permisos invalidos")
+			sublime.message_dialog("La sintaxis para definir permisos no es valida.")
+
+	def hilo(self, permisos, path, burbuja):
+		salida = Connection.chmod(path, permisos)
+		Configuration.currentPath = burbuja
+		if MySftp.checkResponse(self, salida) != True: 
+			return
 
 class removeSftp(sublime_plugin.TextCommand):
-	def run(self, edit, file, is_file):
-		global currentPath
+
+	def run(self, edit, path, is_file = True):
+		burbuja = Configuration.currentPath
 		if is_file == False:
-			currentPath = os.path.dirname(currentPath.rstrip(""))
-			sublime.message_dialog(currentPath)
+			Configuration.currentPath = os.path.dirname(Configuration.currentPath)
 
-		if file.find(".sftp") == -1:
-			self.view.window().run_command("progress_bar", {"mensaje" : "\nEliminando: " + file.rstrip("/")})
+		if path.find('.mysftp') == -1: # No lo encuentra
+			ProgressBar.showDelete(self, getPath(Configuration.currentPath, path))
 
-		salida = SFTP("cd " + currentPath + "\n" + ("del" if is_file == True else "rmdir") + " " + file.rstrip("/"), tipo, ("del" if is_file == True else "rmdir"))
-		if not is_file:
-			upLevel = os.path.normpath(os.path.join(currentPath,"../")).replace("\\", "/")
-			sublime.message_dialog(currentPath + "\n" + upLevel)
-			currentPath = upLevel
-		if salida == "permission denied":
-			self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tienes los permisos necesarios."})
+		t1 = Thread(target=self.hilo, args=[edit, path, is_file, burbuja])
+		t1.start()
+
+	def hilo(self, edit, path, is_file, burbuja):
+		salida = Connection.rm(path, is_file)
+		if path.find('.mysftp') == -1 and MySftp.checkResponse(self, salida) != True:
+			Configuration.currentPath = burbuja
+			return
 
 class getSftp(sublime_plugin.TextCommand):
-	def run(self,edit,file, flag = False, lista = []):
-		global createPanelOutput
-		#flag_edit = True
-		now = datetime.datetime.now()
-		self.view.window().run_command("progress_bar", {"mensaje" : "\n" + now.strftime("%H:%M:%S") + "->Descargando: " + currentPath + file + " en " + tmp_dir + diagonal + file, "change" : False, "loading" : True})
 
-		if not os.path.exists(tmp_dir): os.makedirs(tmp_dir)#Cramos la carpeta temporal
-		##############################################################################
-		if "\n".join(lista).find(file + ".sftp") > 0:#Validamos que exista el archivo
-			salida = SFTP("cd " + currentPath + "\nget " + file + ".sftp" + " " + tmp_dir + diagonal + file + ".sftp", tipo, "get")
-			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
-				nick_current_use =  readFile(tmp_dir + diagonal + file + '.sftp')
-				os.remove(tmp_dir + diagonal + file + ".sftp")
+	def run(self, edit, file, flag = False):
+		MySftp.isWorking();
+		t1 = Thread(target=self.hilo, args=[edit, file, flag])
+		t1.start()
 
-				if nick_current_use != nick:
+	def hilo(self, edit, file, flag = False):
+		ProgressBar.showDownload(self, getPath(Configuration.currentPath, file), file)
+
+		if MySftp.settings.get('check_if_write') and "\n".join(showLs.files_hiddens).find( getTmpName(file) ) != -1: # Validamos que exista el archivo
+			salida = Connection.get(getTmpName(file), os.path.join(Configuration.tmp_path, getTmpName(file)))
+			if os.path.exists(os.path.join(Configuration.tmp_path, getTmpName(file))):
+				nick_current_use = readFile(os.path.join(Configuration.tmp_path, getTmpName(file))).strip()
+				os.remove(os.path.join(Configuration.tmp_path, getTmpName(file)))
+				if nick_current_use != Configuration.nick:
 					if not sublime.ok_cancel_dialog("El usuario " + nick_current_use + " esta usando actualmente el archivo, Deseas continuar con la descarga?."):
-						self.view.window().run_command("progress_bar", {"mensaje" : "    Cancel."})
+						Debug.print('Se manda a cancelar.')
+						ProgressBar.showCancel(self)
 						return
-				#flag_edit = False
 
-		##############################################################################
-		if os.path.exists(tmp_dir + diagonal + file) and self.view.window().find_open_file(tmp_dir + diagonal + file) and flag == False:
+		if os.path.exists(os.path.join(Configuration.tmp_path, file)) and self.view.window().find_open_file(os.path.join(Configuration.tmp_path, file)) and flag == False:
 			sublime.message_dialog("Ya existe un archivo con el mismo nombre, cierre primero para poder continuar editando otro archivo con el mismo nombre.")
 			return
+		
+		salida = Connection.get(file, os.path.join(Configuration.tmp_path, file))
+		time.sleep(0.02) # Esperamos que se termine de descargar el contenido
+		if MySftp.checkResponse(self, salida) != True: return
+
+		# Hay que poner los stops en los progressbar
+		if os.path.exists(os.path.join(Configuration.tmp_path, file)):
+			#ProgressBar.showSuccess(self)
+			createFile(os.path.join(Configuration.tmp_path, os.path.splitext(file)[0] + ".path"), Configuration.currentPath)
+			createFile(os.path.join(Configuration.tmp_path, os.path.splitext(file)[0] + ".config"), Configuration.getJsonConfig())
+			vista = self.view.window().open_file(os.path.join(Configuration.tmp_path, file))
+			t2 = Thread(target=self.hilo2, args=[file])
+			t2.start()
 		else:
-			createFile(tmp_dir + diagonal + file + ".sftp", nick)
-			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
-			salida = SFTP("cd " + currentPath + "\nput " + tmp_dir + diagonal + file + ".sftp" + " " + os.path.basename(file) + ".sftp" + "\nget " + file + " " + tmp_dir + diagonal + file, tipo, "get")
-			if os.path.exists(tmp_dir + diagonal + file + ".sftp"):
-				os.remove(tmp_dir + diagonal + file + ".sftp")
-			#---------------------------------HAY EVITAR UNA PETICIÓN DE MAS AQUÍ----------------------------------
-			if salida == "permission denied":
-				self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tiene los permisos necesarios."})
-				return
+			pass
+			#ProgressBar.showError(self)
 
-		createFile(tmp_dir + diagonal + os.path.splitext(file)[0] + ".path", currentPath)
-		createFile(tmp_dir + diagonal + os.path.splitext(file)[0] + ".config", str_json_config)
-
-		#------------------------------------------------------
-		if createPanelOutput == False:
-			self.view.window().create_output_panel("progess_bar")
-			createPanelOutput = True
-		self.view.window().run_command("show_panel", {"panel": "output.progess_bar"})
-
-		def show_progress_bar():
-			show_progress_bar.message = " "
-			show_progress_bar.change = True
-			vista = self.view.window().open_file(tmp_dir + diagonal + file)
-			while vista.is_loading():
-				view = self.view.window().find_output_panel("progess_bar")
-				view.run_command("my_insert_progress_bar", {"message" : show_progress_bar.message, "change" : show_progress_bar.change})
-		sublime.set_timeout_async(show_progress_bar, 1)
+	def hilo2(self, file):
+		createFile(os.path.join(Configuration.tmp_path, getTmpName(file)), Configuration.nick)
+		salida = Connection.put(os.path.join(Configuration.tmp_path, getTmpName(file)), getTmpName(os.path.basename(file)))
+		time.sleep(0.02)
+		if os.path.exists(os.path.join(Configuration.tmp_path, getTmpName(file))):
+			os.remove(os.path.join(Configuration.tmp_path, getTmpName(file)))
 
 class MySftpEvent(sublime_plugin.EventListener):
-	def on_load(self,view):
-		if os.path.dirname(view.file_name()) == tmp_dir:
-			view.window().run_command("progress_bar", {"mensaje" : "success", "change" : True, "loading" : False})
-
-	def on_post_save(self,view):
-		view.run_command("put_sftp", {"file" : view.file_name(), "flag" : False })
-
-	def on_close(self,view):
+	def on_post_save(self, view):
 		ruta = view.file_name()
-		if ruta != None and os.path.dirname(ruta) == tmp_dir and view.is_dirty() == False:
-			view.run_command("remove_sftp", {"file" : os.path.basename(ruta) + ".sftp", "is_file" : True})
+		if ruta != None and os.path.dirname(ruta) == Configuration.tmp_path:
+			view.run_command("put_sftp", {"file" : view.file_name(), "flag" : False })
+		else:
+			Debug.print("este archivo no es valido para el package.")
+
+	def on_close(self, view):
+		ruta = view.file_name()
+		if ruta != None and os.path.dirname(ruta) == Configuration.tmp_path and view.is_dirty() == False:
+			view.run_command("remove_sftp", {"path" : getTmpName( os.path.basename(ruta) ), "is_file" : True})
+			t1 = Thread(target=self.closeFile, args=[view, ruta])
+			t1.start()
+
+	def closeFile(self, view, ruta):
+		if os.path.exists(ruta):
 			os.remove(ruta)
-			os.remove(os.path.splitext(ruta)[0] + ".path")
-			os.remove(os.path.splitext(ruta)[0] + ".config")
+		if os.path.exists( getTmpName(os.path.splitext(ruta)[0]) ):
+			os.remove( getTmpName(os.path.splitext(ruta)[0]) )
+		os.remove(os.path.splitext(ruta)[0] + ".path")
+		os.remove(os.path.splitext(ruta)[0] + ".config")
 
 class putSftp(sublime_plugin.TextCommand):
+
 	def run(self, edit, file , flag):
-		global mydir, createPanelOutput, tmp_dir, diagonal
-		mydir = sublime.packages_path() + "/User"
+		MySftp.isWorking();
 
-		if platform.system() == "Linux":
-			diagonal = "/"
-			tmp_dir = mydir + diagonal + "tmp_my_sftp"
+		ruta = file.replace('.mysftp', "") if flag == True else file
 
-		ruta = file.replace(".sftp", "") if flag == True else file
+		if os.path.dirname(ruta) != Configuration.tmp_path:
+			return
 
-		if os.path.dirname(ruta) == tmp_dir:
-			path_put = currentPath
-			if flag == False:
-				path_put = readFile(os.path.splitext(ruta)[0] + ".path")
-				json_file = json.loads( readFile(os.path.splitext(ruta)[0] + ".config") )#leemos el archivo de configuración
-				if host == '' or usuario == '' or password == '' or host != json_file[0]["host"] or usuario != json_file[0]["user"] or password != json_file[0]["password"]:
-					self.view.window().run_command('set_config', {'file_json' : os.path.splitext(ruta)[0] + ".config"});
-					if flag_config != True:
-						return
+		path_put = Configuration.currentPath
+		old_path = Configuration.currentPath
 
-					if createPanelOutput == False:
-						self.view.window().run_command("progress_bar", {"mensaje" : "Conectando con el servidor"})
-						self.view.window().run_command("progress_bar", {"mensaje" : "\nConectado en: " + host + " como: " + usuario})
-					else:
-						self.view.window().run_command("progress_bar", {"mensaje" : "\nConectando con el servidor"})
-						self.view.window().run_command("progress_bar", {"mensaje" : "\nConectado en: " + host + " como: " + usuario})
+		if flag == False:
+			path_put = readFile(os.path.splitext(ruta)[0] + ".path")
+			json_file = json.loads( readFile(os.path.splitext(ruta)[0] + ".config") )
+			if Configuration.host == '' or Configuration.usuario == '' or Configuration.password == '' or Configuration.host != json_file[0]["host"] or Configuration.usuario != json_file[0]["user"] or Configuration.password != json_file[0]["password"]:
+				Configuration.setConfig(os.path.splitext(ruta)[0] + ".config")
+				if Configuration.flag_config != True:
+					return
+				ProgressBar.initConnection(self)
+		Configuration.currentPath = path_put
+		t1 = Thread(target=self.hilo1, args=[edit, ruta, flag, old_path])
+		t1.start()
 
-			salida = SFTP("cd " + currentPath + "\nget " + os.path.basename(ruta) + ".sftp" + " " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", tipo, "get")
-			if os.path.exists( tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" ):#Validamos que exista el archivo
-				nick_current_use = readFile(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp")
+	def hilo1(self, edit, ruta, flag, old_path):
+		if flag == False:
+			ProgressBar.showUpload(self, os.path.basename(ruta), getPath(Configuration.currentPath, os.path.basename(ruta)))
 
-				if nick != nick_current_use and flag == False:
+		if MySftp.settings.get('check_if_write'):
+			salida = Connection.get(getTmpName(ruta), os.path.join(Configuration.tmp_path, getTmpName(ruta)))
+			if os.path.exists( os.path.join(Configuration.tmp_path, getTmpName(ruta)) ):#Validamos que exista el archivo
+				nick_current_use = readFile(os.path.join(Configuration.tmp_path, getTmpName(ruta))).strip()
+				if Configuration.nick != nick_current_use and flag == False:
 					if not sublime.ok_cancel_dialog("El usuario " + nick_current_use + " esta usando actualmente el archivo, Deseas subir tus cambios?."):
-						self.view.window().run_command("progress_bar", {"mensaje" : "    Cancel."})
+						ProgressBar.showCancel(self)
 						return
 
-			createFile(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp", nick)
+		createFile(os.path.join(Configuration.tmp_path, getTmpName(ruta)), Configuration.nick)
 
-			if flag == False:
-				now = datetime.datetime.now()
-				self.view.window().run_command("progress_bar", {"mensaje" : "\n" + now.strftime("%H:%M:%S") + "->Subiendo: " + ruta + " en " + path_put + os.path.basename(ruta), "change" : False, "loading" : True})
-				salida = SFTP("cd " + currentPath + "\n" + "put " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" + " " + os.path.basename(ruta) + ".sftp" + "\nput " + ruta + " " + path_put + os.path.basename(ruta), tipo, "put")
-			else:
-				salida = SFTP("cd " + currentPath + "\n" + "put " + tmp_dir + diagonal + os.path.basename(ruta) + ".sftp" + " " + currentPath + os.path.basename(ruta) + ".sftp", tipo, "put")
+		if flag == False:
+			t2 = Thread(target=self.hilo2, args=[edit, ruta, flag, old_path])
+			t2.start()
 
-			if 'nick_current_use' in locals():
-				if nick != nick_current_use:
-					os.remove(tmp_dir + diagonal + os.path.basename(ruta) + ".sftp")
+	def hilo2(self, edit, ruta, flag, old_path):
+		salida = Connection.put(ruta, os.path.basename(ruta))
+		if 'nick_current_use' in locals():
+			if Configuration.nick != nick_current_use:
+				os.remove(os.path.join(Configuration.tmp_path, getTmpName(ruta)))
+		if not flag:
+			if MySftp.checkResponse(self, salida) != True: return
 
-			if salida == "permission denied":
-				self.view.window().run_command("progress_bar", {"mensaje" : "    error\nNo tienes los permisos necesarios para escribir sobre el archivo", "change" : False, "loading" : True})
-				return
-			if createPanelOutput == False:
-				self.window.create_output_panel("progess_bar")
-				createPanelOutput = True
-			self.view.window().run_command("show_panel", {"panel": "output.progess_bar"})
+		t3 = Thread(target=self.hilo3, args=[edit, ruta, old_path])
+		t3.start()
 
-			def show_progress_bar():
-				show_progress_bar.message = "    success"
-				show_progress_bar.change = True
-				view = self.view.window().find_output_panel("progess_bar")
-				if not flag:
-					view.run_command("my_insert_progress_bar", {"message" : show_progress_bar.message, "change" : show_progress_bar.change})
-			sublime.set_timeout_async(show_progress_bar, 1)
-
+	def hilo3(self, edit, ruta, old_path):
+		salida = Connection.put(os.path.join(Configuration.tmp_path, getTmpName(ruta)), getTmpName(ruta))
+		Configuration.currentPath = old_path
+		time.sleep(0.02)
+		if os.path.exists(os.path.join(Configuration.tmp_path, getTmpName(ruta))):
+			os.remove(os.path.join(Configuration.tmp_path, getTmpName(ruta)))
 
 class newFileSftp(sublime_plugin.WindowCommand):
 	def run(self):
+		t1 = Thread(target=self.getListFiles)
+		t1.start()
+		time.sleep(0.16)
 		self.window.show_input_panel("Nombre del archivo:", "", self.createFile, None, None)
 
 	def createFile(self,name_file):
-		if not os.path.exists(tmp_dir): os.makedirs(tmp_dir)
-		if os.path.isfile(tmp_dir + diagonal + name_file):
-			sublime.message_dialog("Ya existe el archivo")
+		# Validamos el nombre de archivo
+		name_file = name_file.strip();
+		if re.match("^[\w\-. ]+$", name_file):
+			# Revisamos que no exista el archivo en remoto
+			if name_file in showLs.list_files:
+				sublime.message_dialog("Ya existe un archivo con el nombre: " + name_file + " en: " + Configuration.currentPath)
+				return
+			if os.path.isfile(os.path.join(Configuration.tmp_path, name_file)):
+				sublime.message_dialog("Se encuentra editando un archivo con el mismo nombre, se recomienda cerrarlo primero.")
+			else:
+				local_file = os.path.join(Configuration.tmp_path, name_file)
+				createFile(local_file)
+				createFile(os.path.join(Configuration.tmp_path, os.path.splitext(name_file)[0] + ".path"), Configuration.currentPath)
+				createFile(os.path.join(Configuration.tmp_path, os.path.splitext(name_file)[0] + ".config"), Configuration.getJsonConfig())
+				ProgressBar.showMakeFile(self, getPath(Configuration.currentPath, name_file))
+				t2 = Thread(target=self.hilo, args=[local_file])
+				t2.start()
 		else:
-			createFile(tmp_dir + diagonal + name_file, '')
-			createFile(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".path", currentPath)
-			createFile(tmp_dir + diagonal + os.path.splitext(name_file)[0] + ".config", str_json_config)
+			sublime.message_dialog("Nombre de archivo no valido")
 
-			def esperando():
-				vista = self.window.open_file(tmp_dir + diagonal + name_file)
-				while vista.is_loading():
-					pass
-				self.window.run_command("put_sftp", {"file" : "", "flag" : False });
-			sublime.set_timeout_async(esperando, 0)
+	def hilo(self, local_file):
+		salida = Connection.put(local_file, os.path.basename(local_file))
+		tmp_name = os.path.join(Configuration.tmp_path, getTmpName(os.path.basename(local_file)))
+		createFile(tmp_name, Configuration.nick)
+		Connection.put(tmp_name, os.path.basename(tmp_name))
+		time.sleep(0.08)
+		os.remove(tmp_name)
+		if MySftp.checkResponse(self, salida) == True:
+			self.window.open_file(local_file)
+
+	def getListFiles(self):
+		showLs.getListFiles(self)
 
 class newDirSftp(sublime_plugin.WindowCommand):
 	def run(self):
+		t1 = Thread(target=self.getListFiles)
+		t1.start()
+		time.sleep(0.16)
 		self.window.show_input_panel("Nombre del directorio:", "", self.createDir, None, None)
-	def createDir(self,name_dir):
-		global currentPath
-		name_dir = re.sub(' +', ' ',name_dir)
-		name_dir = name_dir.strip()
-		if name_dir == '' :
-			sublime.message_dialog("Nombre invalido :(")
-		else:
-			self.window.run_command("progress_bar", {"mensaje" : "\nCreando directorio: " + currentPath + name_dir})
-			salida = SFTP("cd " + currentPath + "\n" + "mkdir " + name_dir + "\ncd " + name_dir + "/" + "\nls", tipo, "mkdir")
-			if salida == "permission denied":
-				self.window.run_command("progress_bar", {"mensaje" : "    error\nNo tienes los permisos necesarios"})
+
+	def createDir(self, name_dir):
+		name_dir = name_dir.strip();
+		if re.match("^[\w\-. ]+$", name_dir):
+			# Revisamos que no exista el archivo en remoto
+			if (name_dir + '/') in showLs.list_files:
+				sublime.message_dialog("Ya existe un directorio con el nombre: " + name_dir + " en: " + Configuration.currentPath)
 				return
-			currentPath = currentPath + "/" + name_dir
-			self.window.run_command("show_ls",{"args" : salida});
+			t2 = Thread(target=self.hilo, args=[name_dir])
+			t2.start()
+
+	def hilo(self, name_dir):
+		ProgressBar.showMakeDir(self, getPath(Configuration.currentPath, name_dir ))
+		salida = Connection.mkdir(name_dir)
+		if MySftp.checkResponse(self, salida) != True: return
+		Configuration.currentPath = getPath(Configuration.currentPath, name_dir)
+		self.window.run_command("show_ls");
+
+	def getListFiles(self):
+		showLs.getListFiles(self)
 
 class ServerManager(sublime_plugin.WindowCommand):
-	listServers = []
 	def run(self, action):
-		global mydir, listServers
-		mydir = sublime.packages_path() + "/User"
-		listServers = get_list_servers()
-		quick_list = [option for option in listServers]
+		MySftp.listServers = get_list_servers(Configuration.servers_path)
+		quick_list = [option for option in MySftp.listServers]
 		self.quick_list = quick_list
 		self.window.show_quick_panel(quick_list,lambda id : self.on_done(id, action),0)
 
 	def on_done(self, index, action):
-		if index > 0:
+		if index >= 0:
 			if action == 'edit':
-				self.window.open_file(mydir + diagonal + listServers[index] + ".json")
+				self.window.open_file(os.path.join(Configuration.servers_path, MySftp.listServers[index] + ".json"))
 			elif action == 'remove':
-				os.remove(mydir + diagonal + listServers[index] + ".json")
+				os.remove(os.path.join(Configuration.servers_path, MySftp.listServers[index] + ".json"))
 
 class NewServer(sublime_plugin.WindowCommand):
 	def run(self):
 		vista = self.window.new_file()
-		self.window.run_command('insert_snippet',{"contents": "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"${1:[ip_host:host_name]}\",\n\t\"user\" : \"${2:usuario}\",\n\t\"password\" : \"${3:contraseña}\",\n\t\"port\" : \"${4:puerto}\",\n\t\"remote_path\" : \"${5:/var/www/html/}\"\n}]"})
-		vista.set_syntax_file("Packages/JavaScript/JSON.sublime-syntax")
-		vista.settings().set('default_dir', sublime.packages_path() + '/User')
+		self.window.run_command('insert_snippet',{"contents": json.dumps(Configuration.snippet, indent='\t')})
+		vista.set_syntax_file("JSON.sublime-syntax")
+		vista.settings().set('default_dir', Configuration.servers_path)
 
 class renameSftp(sublime_plugin.WindowCommand):
-	def run(self,archivo):
-		self.window.show_input_panel("Nombre Nuevo:", archivo.rstrip("/"), lambda name:self.newName(archivo.rstrip("/"),name), None, None)
-	def newName(self, name_current, new_name):
-		self.window.run_command("progress_bar", {"mensaje" : "\nRenombrando: " + name_current + " a " + new_name})
-		salida = SFTP("cd " + currentPath + "\nmv " + name_current + " " + new_name, tipo, "mv")
-		if salida == "permission denied":
-			self.window.run_command("progress_bar", {"mensaje" : "    error\nNo tienes los permisos necesarios."})
+	def run(self, path, is_folder = False):
+		self.window.show_input_panel("Nombre Nuevo:", path, lambda name:self.rename(path, name, is_folder), None, None)
 
-class MyInsertProgressBarCommand(sublime_plugin.TextCommand):
-	def run(self, edit, message, change):
-		global cntLine
-		view = self.view
-		view.set_read_only(False)
-		# view.settings().set("color_scheme", "Packages/MySFTP/Monokai.tmTheme")
-		view.set_syntax_file("MySFTP.tmLanguage")
-		point = self.view.text_point(cntLine, 0)
-		view.insert(edit, point, message)
-		view.set_read_only(True)
-		view.show(point)
-		cntLine += 1
+	def rename(self, current_name, new_name, is_folder = False):
+		ProgressBar.showRename(self, current_name, new_name)
+		t1 = Thread(target=self.hilo, args=[current_name, new_name, is_folder])
+		t1.start()
 
-class ProgressBarCommand(sublime_plugin.WindowCommand):
-	def run(self, mensaje, change = False, loading = False):
-		global createPanelOutput
-		if createPanelOutput == False:
-			self.window.create_output_panel("progess_bar")
-			createPanelOutput = True
-		self.window.run_command("show_panel", {"panel": "output.progess_bar"})
+	def hilo(self, current_name, new_name, is_folder = False):
+		burbuja = Configuration.currentPath
+		if is_folder:
+			Configuration.currentPath = os.path.dirname(Configuration.currentPath)
 
-		def test_progress_bar():
-			test_progress_bar.message = mensaje
-			test_progress_bar.change = change
-			self.show_progress(test_progress_bar.message, test_progress_bar.change)
-
-		sublime.set_timeout_async(test_progress_bar, 1)
-
-	def show_progress(self,message, change):
-		view = self.window.find_output_panel("progess_bar")
-		view.run_command("my_insert_progress_bar", {"message" : message, "change" : change})
-
-	def finish_progress(self, message):
-		self.show_progress(100,message)
-
-	def _destroy(self):
-		self.window.destroy_output_panel("progess_bar")
-
-def SFTP(comando, type = "sftp", cmd = ""):
-	global puerto, usuario, password, host, contador_uso, tipo
-	salida = ""
-
-	array_comando = comando.split("\n")[1]
-	if array_comando != "ls":
-		print(cmd, array_comando.split(' '))
-		try:
-			file_server = array_comando.split(' ')[1 if cmd == "get" and cmd != "put" else 2]
-			file_local = array_comando.split(' ')[2 if cmd == "get" and cmd != "put" else 1]
-		except IndexError:
-			file_name = array_comando.split(' ')[2 if cmd =="chmod" and cmd != "del" else 1]
-			print("Oops! Algun indice incorrecto")
-		if cmd == "chmod":
-			permisos = array_comando.split(' ')[1]
-		elif cmd == "mv":
-			current_name = array_comando.split(' ')[1]
-			last_name = array_comando.split(' ')[2]
-		elif cmd == "rmdir" or cmd == "mkdir":
-			dir_name = array_comando.split(' ')[1]
-
-	if (cmd == 'get' or cmd == 'put') and len(comando.split("\n")) == 3 and platform.system() == "Linux" and tipo == "sftp":
-		print("Se combio el modus " + 'putandget' if cmd == 'get' else 'putandput')
-		file_put_local = file_one_local = comando.split("\n")[1].split(' ')[1]
-		file_put_server = file_one_server = comando.split("\n")[1].split(' ')[2]
-
-		file_get_server = file_two_local = comando.split("\n")[2].split(' ')[1]
-		file_get_local = file_two_server = comando.split("\n")[2].split(' ')[2]
-		cmd = 'putandget'if cmd == 'get' else 'putandput'
-
-	if tipo == "sftp":
-		if platform.system() == "Linux":
-			#sublime.message_dialog( platform.system() )
-			if cmd == "ls":
-				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + " && ls -lrt | sed '/ \.$/d' | sed '/ \.\.$/d'"], True)
-			elif cmd == "get":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nget " + file_server + " " + file_local], True)
-			elif cmd == "putandget":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nput " + file_put_local + " " + file_put_server + "\nget " + file_get_server + " " + file_get_local], True)
-			elif cmd == "put":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nput " + file_local + " " + file_server], True)
-			elif cmd == 'putandput':
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\n" + "put " + file_one_local + " " + file_one_server + "\nput " + file_two_local + " " + file_two_server], True)
-			elif cmd == "chmod":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nchmod " + permisos + " " + file_name], True)
-			elif cmd == "mv":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrename " + current_name + " " + last_name], True)
-			elif cmd == "rmdir":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrmdir " + dir_name], True)
-			elif cmd == "del":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nrm " + file_name], True)
-			elif cmd == "mkdir":
-				retorno = ssh_exec_pass(password, ["sftp", usuario + "@" + host, "cd " + currentPath + "\nmkdir " + dir_name], True)
-				retorno = ssh_exec_pass(password, ["ssh", usuario + "@" + host, "cd " + currentPath + dir_name + " && ls -lrt  | sed '/ \.$/d' | sed '/ \.\.$/d'"], True)
-			else:
-				sublime.message_dialog("Comando incorrecto")
-
-			print(retorno[2])
-			salida = str( retorno[1].decode('utf-8', 'ignore') )
-
-			if salida.find("Could not resolve hostname") != -1:
-				return False
-			elif salida.find("total") == -1:
-				return False
+		salida = Connection.mv(current_name, new_name)
+	
+		if MySftp.checkResponse(self, salida) != True:
+			if is_folder:
+				Configuration.currentPath = burbuja
+			return
 		else:
-			try:
-				createFile(sublime.packages_path() + "\\User\\script.bat", comando)
-
-				f = open(sublime.packages_path() + "\\MySFTP\\data.out","w")
-				proceso = subprocess.Popen([sublime.packages_path() + "\\MySFTP\\bin\\psftp.exe" ,"-P" , puerto, "-pw", password, "-b" , sublime.packages_path() + "\\User\\script.bat", usuario + "@" + host], stdout=f, stderr=subprocess.PIPE, shell=True)
-				proceso.wait(10)
-				f.close()
-				errores = proceso.stderr.read()
-				if proceso.stdout == None:
-					with open(sublime.packages_path() + "\\MySFTP\\data.out","r") as content_file:
-						content = content_file.read()
-					salida = content
-					os.remove( sublime.packages_path() + "\\MySFTP\\data.out" )
-				else:
-					salida = proceso.stdout.read()
-					proceso.stdout.close()
-					salida = salida.decode(sys.getdefaultencoding()) #Salida del comando
-
-				proceso.stderr.close()
-				errores = errores.decode(sys.getdefaultencoding())
-				if errores.find("Using username") == -1:
-					print("Errores: " + errores)
-			except subprocess.TimeoutExpired as e:
-				salida = "Usuario o password incorrectos."
-				print("Ocurrio esto")
-				return False
-				raise e
-
-			if salida.find("Network error: Connection timed out") != -1:
-				print("fue esto")
-				print(salida)
-				return False
-			if salida.find("permission denied") != -1:
-				print(salida)
-				return "permission denied"
-	else:
-		ftp = ftplib.FTP();
-		ftp.connect(host, int(puerto))
-		ftp.login(usuario, password)
-		ftp.cwd(currentPath)
-		data = []
-		array_comando = comando.split("\n")[1]
-
-		if cmd == "ls":
-			ftp.dir(data.append)
-			for item in data:
-				salida = salida + item + "\n"
-		elif cmd == "get":
-			fhandle = open(file_local, 'wb')
-			ftp.retrbinary('RETR ' + file_server , fhandle.write)
-			fhandle.close()
-		elif cmd == "put":
-			with open(file_local, "rb") as f:
-				ftp.storlines("STOR " + file_server, f)
-		elif cmd == "chmod":
-			salida = ftp.sendcmd("SITE CHMOD " + permisos + " " + file_name)
-		elif cmd == "mv":
-			salida = ftp.rename(current_name, last_name)
-		elif cmd == "rmdir":
-			ftp.rmd(dir_name)
-		elif cmd == "del":
-			ftp.delete(file_name)
-		elif cmd == "mkdir":
-			ftp.mkd(dir_name)
-			ftp.cwd(dir_name)
-			ftp.dir(data.append)
-			for item in data:
-				salida = salida + item + "\n"
-		else:
-			sublime.message_dialog("Comando incorrecto")
-		ftp.quit()
-
-	# if contador_uso > 9:
-	# 	if sublime.message_dialog("Ni verga tienes que pagarme"):
-	# 		print ("Pagar")
-	# 	else:
-	# 		print ("Jajaja")
-	# else:
-	# 	print(str(contador_uso) + "")
-	# 	contador_uso = contador_uso + 1
-	return salida
+			if is_folder:
+				Configuration.currentPath = getPath(Configuration.currentPath, new_name)
 
 class SideBar(sublime_plugin.WindowCommand):
 	def run(self, paths = []):
-		pass
+		###self.window.run_command("progress_bar", {"msg" : "\nCargando "})
+		ProgressBar.showDownload(self)
+		t1 = Thread(target=self.testLoad)
+		t1.start()
 
-	def is_visible(self, paths = []):
-		print(paths)
+	def testLoad(self):
+		# self.window.run_command("progress_bar", {"msg" : "", "start_loading": True, "stop_loading": False})
+		time.sleep(2)
+		# self.window.run_command("progress_bar", {"msg" : "success", "start_loading": False, "stop_loading": True})
+		ProgressBar.showSuccess(self)
+
+	def is_visible(self, paths = ''):
 		return True
 
-	def is_enabled(self, paths = []):
-		return False
-
-def get_list_servers():
-	archivos = []
-	for arch in os.listdir( sublime.packages_path() + "/User" ):
-		if os.path.isfile(os.path.join(mydir, arch)):
-			filename, file_extension = os.path.splitext(arch)
-			if file_extension == ".json":
-				archivos.append(filename)
-	return archivos
-
-def createFile(phat, content):
-	file = open(phat, 'w')
-	file.write(content)
-	file.close()
-
-def readFile(phat):
-	file = open(phat, 'r')
-	content = file.read()
-	file.close()
-	return content
-
-
-class SetConfig(sublime_plugin.TextCommand):
-	def run(self, edit, file_json):
-		global mydir, currentPath, puerto, usuario, nick, password, host, tipo, str_json_config
-
-		json_file = json.loads( readFile(file_json) )
-
-		tipo = json_file[0]["type"]
-
-		if tipo != "sftp" and tipo != "ftp":
-			sublime.message_dialog("Tipo de conexión invalida.")
-			flag_config = False
-			return
-
-		host = json_file[0]["host"]
-		usuario = json_file[0]["user"]
-		nick = json_file[0]["nick"]
-
-		if nick == "":
-			sublime.message_dialog("Es necesario que coloques un Nick.")
-			flag_config = False
-			return
-
-		password = json_file[0]["password"]
-		puerto = json_file[0]["port"]
-		if currentPath == '':
-			currentPath = json_file[0]["remote_path"]
-		if host != "" and host != json_file[0]["host"] and usuario != "" and usuario != json_file[0]["user"]:
-			currentPath = json_file[0]["remote_path"]
-
-		str_json_config = "[{\n\t\"nick\" : \"" + nick + "\",\n\t\"type\" : \"" + tipo + "\",\n\t\"host\" : \"" + host + "\",\n\t\"user\" : \"" + usuario + "\",\n\t\"password\" : \"" + password + "\",\n\t\"port\" : \"" + puerto + "\",\n\t\"remote_path\" : \"" + currentPath + "\"\n}]"
-		if usuario == None or usuario == '':
-			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
-		if host == None or host == '':
-			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el servidor host en el archivo de configuración"})
-		if password == None or password == '':
-			self.window.run_command("progress_bar", {"mensaje" : "No se ha definido el password en el archivo de configuración"})
-		if usuario == None or usuario == '' or host == None or host == '' or password == None or password == '': 
-			flag_config = False
-			return
+	def is_enabled(self, paths = ''):
+		Debug.print("$path", paths)
+		return True

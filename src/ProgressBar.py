@@ -1,0 +1,174 @@
+import sublime
+import sublime_plugin
+import time
+from datetime import datetime
+from threading import Thread, currentThread, current_thread
+from .Configuration import Configuration
+from .extras import Debug
+
+hilo = None;
+
+class ShowProgressBarCommand(sublime_plugin.TextCommand):
+	cntLine = 0
+	t = None
+	view_only = None
+
+	def run(self, edit, msg = '', loading = False, stop = False, replace_flag = False):
+		if self.view_only == None:
+			self.view_only = self.view.window().find_output_panel("progress_bar")
+		view = self.view_only
+		if view == None:
+			self.view.run_command("progress_bar", {'msg': msg})
+		else:
+			if view.settings().get('syntax') != 'MySFTP.sublime-syntax':
+				self.set_syntax(view)
+			if loading == True and stop == False:
+				ShowProgressBarCommand.t = Thread(target=self.showLoading, args=[view])
+				ShowProgressBarCommand.t.start()
+			elif loading == False and stop == True:
+				try:
+					ShowProgressBarCommand.t.do_run = False
+					ShowProgressBarCommand.t.join()
+				except Exception as e:
+					Debug.print(e)
+					raise e
+			elif loading == False and stop == False:
+				self.insert(view, edit, msg, replace_flag)
+
+	def showLoading(self, view):
+		t = currentThread()
+		while getattr(t, "do_run", True):
+			if getattr(t, "do_run", True):
+				view.run_command("show_progress_bar", {'msg': "*", "replace_flag": True})
+			time.sleep(0.16)
+
+
+	def insert(self, view, edit, msg, replace_flag = False):
+		view.set_read_only(False)
+		point = view.text_point(ShowProgressBarCommand.cntLine, 0)
+		view.insert(edit, point, msg)
+		#view.set_read_only(True) -> Linea Mala por eso se atoraba el programa
+		view.show(point)
+		num_lines = msg.count("\n")
+		if num_lines == 0:
+			ShowProgressBarCommand.cntLine += 1
+		else:
+			ShowProgressBarCommand.cntLine += num_lines
+
+
+	def set_syntax(self, view):
+		view.settings().set("color_scheme", "MySFTP.sublime-color-scheme")
+		view.set_syntax_file("MySFTP.sublime-syntax")
+
+class ProgressBarCommand(sublime_plugin.WindowCommand):
+
+	createPanelOutput = False
+	
+	def run(self, msg = '', loading = False, stop = False):
+		print("method run ProgressBarCommand")
+		if ProgressBarCommand.createPanelOutput == False:
+			self.window.create_output_panel("progress_bar")
+			ProgressBarCommand.createPanelOutput = True
+		self.window.run_command("show_panel", {"panel": "output.progress_bar"})
+		
+		#sublime.set_timeout_async(self.show_progress(msg, loading, stop), 1)
+		#def show_progress(self, msg, loading, stop):
+		view = self.window.find_output_panel("progress_bar")
+		view.run_command("show_progress_bar", {"msg" : msg, "loading": loading, "stop": stop})
+
+	def _destroy(self):
+		self.window.destroy_output_panel("progress_bar")
+
+	@staticmethod
+	def showMessage(self, msg = ''):
+		ProgressBarCommand.getWindow(self).run_command('progress_bar', {"msg": msg})
+
+	@staticmethod
+	def initConnection(self):
+		ProgressBarCommand.getWindow(self).run_command('progress_bar', {"msg": 'Conectando con el servidor\nConectado en: ' + Configuration.host + ' como: ' + Configuration.usuario + "\n"})
+
+	@staticmethod
+	def showList(self):
+		ProgressBarCommand.__runLoading(self, "Listando directorio '{}'".format(Configuration.currentPath))
+
+	@staticmethod
+	def showDownload(self, file_server, file_local):
+		ProgressBarCommand.__runLoading(self, "Descargando '{}' en '{}'.".format(file_server, file_local))
+
+	@staticmethod
+	def showUpload(self, file_local, file_server):
+		ProgressBarCommand.__runLoading(self, "Subiendo '{}' en '{}'.".format(file_local, file_server))
+
+	@staticmethod
+	def showMakeFile(self, file_name):
+		ProgressBarCommand.__runLoading(self, "Creando archivo '{}'.".format(file_name))
+
+	@staticmethod
+	def showMakeDir(self, dir_name):
+		ProgressBarCommand.__runLoading(self, "Creando carpeta '{}'.".format(dir_name))
+
+	@staticmethod
+	def showChmod(self, path):
+		ProgressBarCommand.__runLoading(self, "Cambiando permisos a '{}'.".format(path))
+
+	@staticmethod
+	def showDelete(self, path):
+		ProgressBarCommand.__runLoading(self, "Borrando '{}'.".format(path))
+
+	@staticmethod
+	def showRename(self, current_name, new_name):
+		ProgressBarCommand.__runLoading(self, "Moviendo '{}' a '{}'.".format(current_name, new_name))
+
+	@staticmethod
+	def showSuccess(self):
+		ProgressBarCommand.__stopLoading(self, True)
+
+	@staticmethod
+	def showError(self):
+		ProgressBarCommand.__stopLoading(self, False)
+
+	@staticmethod
+	def showCancel(self):
+		ProgressBarCommand.__stopLoading(self, False, cancel=True)
+
+	@staticmethod
+	def showErrorPermissions(self):
+		ProgressBarCommand.__stopLoading(self, False, "No tiene los permisos necesarios.")
+
+	@staticmethod
+	def showErrorCredentials(self):
+		ProgressBarCommand.__stopLoading(self, False, "El nombre de usuario o contraseña son incorrectos.")
+
+	@staticmethod
+	def showErrorTimeOutExpired(self):
+		ProgressBarCommand.__stopLoading(self, False, "Tiempo de espera agotado.")
+
+	@staticmethod
+	def showConnectionRefuse(self):
+		ProgressBarCommand.__stopLoading(self, False, "No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.")
+
+	@staticmethod
+	def showErrorNoSuchFileOrDirectory(self):
+		ProgressBarCommand.__stopLoading(self, False, "No existe el archivo o directorio.")
+
+	@staticmethod
+	def __runLoading(self, msg, show_time=True):
+		msg = "{} -> {}".format(datetime.now().strftime("%H:%M:%S"), msg) if show_time else msg
+		ProgressBarCommand.getWindow(self).run_command('progress_bar', {"msg": "{} ".format(msg)})
+		ProgressBarCommand.getWindow(self).run_command('progress_bar', {"loading": True})
+
+	@staticmethod
+	def __stopLoading(self, success, msg='', cancel=False):
+		msg = "success.\n" if success else ("error.\n{}\n".format(msg) if msg != '' else "error.\n")
+		msg = "Cancel.\n" if cancel else msg
+		ProgressBarCommand.getWindow(self).run_command("progress_bar", {"stop": True})
+		ProgressBarCommand.getWindow(self).run_command("progress_bar", {"msg": " {}".format(msg)})
+
+	@staticmethod
+	def getWindow(objecto):
+		parents = objecto.__class__.__bases__
+		name_class = parents[0].__name__
+		if name_class == 'WindowCommand':
+			return objecto.window
+		elif name_class == 'TextCommand':
+			return objecto.view.window()

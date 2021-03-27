@@ -3,11 +3,10 @@
 		"caption": "-",
 	},
 	{
-		"caption": "MySftp",
+		"caption": "MySFTP",
 		"command": "sync_files",
 		"args": {
 			"comando": "",
-			"file" : ""
 		},
 		"children": [
 			{

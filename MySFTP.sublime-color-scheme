@@ -1,0 +1,51 @@
+{
+	"name": "MySFTP",
+	"globals":
+	{
+		"background": "#273136",
+		"foreground": "#EEEEEE",
+		"caret": "#273136",
+		"line_highlight": "#273136",
+		"selection": "limegreen",
+		"selection_foreground": "#FFFFFF"
+	},
+	"rules":
+	[
+		{
+			"scope": "connection",
+			"foreground": "DeepSkyBlue",
+		},
+		{
+			"scope": "connection.ip",
+			"foreground": "#00FF7F",
+		},
+		{
+			"scope": "messages.success",
+			"foreground": "#7CFC00"
+		},
+		{
+			"scope": "messages.error",
+			"foreground": "#FF0000"
+		},
+		{
+			"scope": "messages.time",
+			"foreground": "#ffff7e"
+		},
+		{
+			"scope": "messages.warning",
+			"foreground": "orange"
+		},
+		{
+			"scope": "messages.path",
+			"foreground": "#c5eff7"
+		},
+		{
+			"scope": "messages.username",
+			"foreground": "#00FF7F"
+		},
+		{
+			"scope": "messages.loading",
+			"foreground": "#00FF7F"
+		}
+	]
+}

@@ -1,0 +1,26 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+name: MySFTP
+file_extensions: []
+scope: source.mysftp
+contexts:
+  main:
+    - match: "(Conectando con el servidor|(Conectado en:)|como:|Listando directorio| Cambiando permisos a|Moviendo|Subiendo|Descargando|Borrando)"
+      scope: connection
+    - match: \b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(\slocalhost\s)|(\s[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}\s)\b
+      scope: connection.ip
+    - match: \b(success)\b
+      scope: messages.success
+    - match: \b(error)|No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión\b
+      scope: messages.error
+    - match: \b(warning)|El nombre de usuario o contraseña son incorrectos.|No tiene los permisos necesarios|No existe el archivo o directorio|Tiempo de espera agotado|Imposible conectar con el servidor, no se pudo resolver|Cancel\b
+      scope: messages.warning
+    - match: (\d{2}\:?)*\s\-\>
+      scope: messages.time
+    - match: "(\'.*\')"
+      scope: messages.path
+    - match: \b(\s*\w*)\b
+      scope: messages.username
+    - match: \**
+      scope: messages.loading
