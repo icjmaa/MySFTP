@@ -1,4 +1,4 @@
-MySFTP - v1.0.0
+MySFTP - v2.0.1
 ================
 
 [![Build Status](https://img.shields.io/travis/SublimeLinter/SublimeLinter/master.svg)](https://github.com/icjmaa/MySFTP)
