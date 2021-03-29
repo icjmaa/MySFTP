@@ -25,7 +25,9 @@ def plugin_loaded():
 
 	# Se crea el directorio para los archivos temporales
 	Configuration.tmp_path = os.path.join(Configuration.mysftp_path, 'tmp')
-	shutil.rmtree(Configuration.tmp_path)
+	if os.path.exists(Configuration.tmp_path):
+		shutil.rmtree(Configuration.tmp_path)
+
 	if not os.path.exists(Configuration.tmp_path): os.makedirs(Configuration.tmp_path)
 
 	# Se crea directorio para los archivos de configuración de servidores
@@ -44,7 +46,11 @@ def plugin_loaded():
 	Debug.settings = MySftp.settings
 	# create custome file settings
 	if not os.path.exists(os.path.join(user_path, 'MySFTP.sublime-settings')):
-		json_settings = {'debug_mode': MySftp.settings.get('debug_mode'), 'debug_console': MySftp.settings.get('debug_console'), 'check_if_write': MySftp.settings.get('check_if_write')}
+		json_settings = {
+			'debug_mode': MySftp.settings.get('debug_mode') or False,
+			'debug_console': MySftp.settings.get('debug_console') or False,
+			'check_if_write': MySftp.settings.get('check_if_write') or False
+		}
 		createFile(os.path.join(user_path, 'MySFTP.sublime-settings'), json.dumps(json_settings, indent='\t'))
 	Debug.print("DEBUG_MODE: ", str(MySftp.settings.get('debug_mode')))
 	Debug.print("DEBUG_CONSOLE: ", str(MySftp.settings.get('debug_console')))

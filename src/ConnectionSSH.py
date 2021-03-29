@@ -127,6 +127,7 @@ class ConnectionSSH():
 							log.append( str( data.decode('utf-8', 'ignore') ) )
 							log.append(str(stderr_fd))
 							log.append(str(rd_ready[0]))
+							output.extend(data)
 				else:
 					log.append("Se hizo un break")
 					break
