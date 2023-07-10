@@ -2,8 +2,8 @@ import os
 import re
 import platform
 
-PATTERN_INFO_TO_LIST_FILES = re.compile(r"[l|d|r|w|x|\*|-]+\s+\d+\s+[a-z|0-9|_\-]*\s+[a-z||0-9|_\-]*\s+[\d.]+\w*\s+\w+\s+\d+\s+[\d\:]+\s+")
-PATTERN_TO_LIST_FILES = re.compile(r"[l|d|r|w|x|\*|-]+\s+\d+\s+[a-z|0-9|_|-]*\s+[a-z|0-9|_|-]*\s+[\d.]+\w*\s+\w+\s+\d+\s+[\d\:]+\s+.+")
+PATTERN_INFO_TO_LIST_FILES = re.compile(r"[l|d|r|w|x|\*|-]+(?:\.?)\s+\d+\s+[a-z|0-9|_\-]*\s+[a-z||0-9|_\-]*\s+[\d.]+\w*\s+\w+\s+\d+\s+[\d\:]+\s+")
+PATTERN_TO_LIST_FILES = re.compile(r"[l|d|r|w|x|\*|-]+(?:\.?)\s+\d+\s+[a-z|0-9|_|-]*\s+[a-z|0-9|_|-]*\s+[\d.]+\w*\s+\w+\s+\d+\s+[\d\:]+\s+.+")
 PATTERN_TO_SYMLINK = re.compile(r"\s+\-\>\s+.*")
 
 class Debug():
