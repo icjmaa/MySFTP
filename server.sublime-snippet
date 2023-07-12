@@ -1,0 +1,13 @@
+<snippet>
+	<content><![CDATA[
+[{
+	"nick": "${1:root}",
+	"type": "${2:[sftp|ftp]}",
+	"host": "${3:[ip_host|server_host_name|domain]}",
+	"user": "${4:usuario}",
+	"password": "${5:contraseña}",
+	"port": "${6:puerto}",
+	"remote_path": "${7:/var/www/html/}"
+}]
+]]></content>
+</snippet>

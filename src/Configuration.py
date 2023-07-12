@@ -1,4 +1,5 @@
 import json
+import re
 from .extras import readFile, Debug, getPath
 
 class Configuration():
@@ -18,16 +19,6 @@ class Configuration():
 	nick = ''
 	currentPath = ''
 
-	snippet = [{
-		'nick': '${1:root}',
-		'type': '${2:[sftp|ftp]}',
-		'host': '${3:[ip_host|server_host_name|domain]}',
-		'user': '${4:usuario}',
-		'password': '${5:contraseña}',
-		'port': '${6:puerto}',
-		'remote_path': '${7:/var/www/html/}'
-	}]
-
 	def __init__(self, config):
 		self.tipo = config[0]['type']
 		self.host = config[0]['host']
@@ -39,7 +30,12 @@ class Configuration():
 
 	@staticmethod
 	def setConfig(json_config_file):
-		json_file = json.loads( readFile(json_config_file) )
+		content_config_file = readFile(json_config_file)
+		content_config_file = re.sub(r'[\t*|\s*]\/{2}.*', '', content_config_file)
+		content_config_file = re.sub(r'\,\n\}\]', '\n}]', content_config_file)
+
+		json_file = json.loads(content_config_file)
+
 		Configuration.tipo = json_file[0]['type']
 		if Configuration.tipo != 'sftp' and Configuration.tipo != 'ftp':
 			sublime.message_dialog('Tipo de conexión invalida.')

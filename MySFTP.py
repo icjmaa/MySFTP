@@ -502,8 +502,9 @@ class ServerManager(sublime_plugin.WindowCommand):
 class NewServer(sublime_plugin.WindowCommand):
 	def run(self):
 		vista = self.window.new_file()
-		self.window.run_command('insert_snippet',{"contents": json.dumps(Configuration.snippet, indent='\t')})
+		vista.run_command('insert_snippet', {"name": "Packages/MySFTP/server.sublime-snippet" })
 		vista.set_syntax_file("JSON.sublime-syntax")
+		vista.set_name('server.json')
 		vista.settings().set('default_dir', Configuration.servers_path)
 
 class renameSftp(sublime_plugin.WindowCommand):
