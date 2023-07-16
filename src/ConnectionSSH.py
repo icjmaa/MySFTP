@@ -40,9 +40,9 @@ class ConnectionSSH():
 			os.close(w2_fd)
 			
 			if program == 'sftp':
-				os.execvp(program, [program, port, user_host])
+				os.execvp(program, [program, "-o", 'PubkeyAuthentication=no', port, user_host])
 			elif program == 'ssh':
-				os.execvp(program, [program, user_host, command_remote])
+				os.execvp(program, [program, "-o", 'PubkeyAuthentication=no', user_host, command_remote])
 		
 		os.close(w1_fd)
 		os.close(w2_fd)
