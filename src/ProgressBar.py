@@ -12,6 +12,8 @@ class ShowProgressBarCommand(sublime_plugin.TextCommand):
 	cntLine = 0
 	t = None
 	view_only = None
+	timer = None
+	loading = False
 
 	def run(self, edit, msg = '', loading = False, stop = False, replace_flag = False):
 		if self.view_only == None:
@@ -23,25 +25,17 @@ class ShowProgressBarCommand(sublime_plugin.TextCommand):
 			if view.settings().get('syntax') != 'MySFTP.sublime-syntax':
 				self.set_syntax(view)
 			if loading == True and stop == False:
-				ShowProgressBarCommand.t = Thread(target=self.showLoading, args=[view])
-				ShowProgressBarCommand.t.start()
+				ShowProgressBarCommand.loading = True
+				self.timer = sublime.set_timeout(self.showLoading, 128)
 			elif loading == False and stop == True:
-				try:
-					ShowProgressBarCommand.t.do_run = False
-					ShowProgressBarCommand.t.join()
-				except Exception as e:
-					Debug.print(e)
-					raise e
+				ShowProgressBarCommand.loading = False
 			elif loading == False and stop == False:
 				self.insert(view, edit, msg, replace_flag)
 
-	def showLoading(self, view):
-		t = currentThread()
-		while getattr(t, "do_run", True):
-			if getattr(t, "do_run", True):
-				view.run_command("show_progress_bar", {'msg': "*", "replace_flag": True})
-			time.sleep(0.16)
-
+	def showLoading(self):
+		if ShowProgressBarCommand.loading:
+			sublime.active_window().run_command("show_progress_bar", {'msg': "*", "replace_flag": True})
+			self.timer = sublime.set_timeout(self.showLoading, 128)
 
 	def insert(self, view, edit, msg, replace_flag = False):
 		view.set_read_only(False)

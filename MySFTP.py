@@ -84,8 +84,7 @@ class MySftp(sublime_plugin.TextCommand):
 	@staticmethod
 	def isWorking():
 		try:
-			is_alive = ShowProgressBarCommand.t != None and ShowProgressBarCommand.t.isAlive()
-			if is_alive:
+			if ShowProgressBarCommand.loading:
 				raise Exception("threading isAlive")
 		except Exception as e:
 			sublime.message_dialog("Hay una operación en proceso, espere a que esta termine para continuar.")
