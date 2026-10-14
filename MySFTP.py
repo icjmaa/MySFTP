@@ -200,7 +200,7 @@ class showLs(sublime_plugin.WindowCommand):
 					self.quick_list = quick_list
 					self.window.show_quick_panel(quick_list, lambda id : self.file_selected(id, showLs.list_files[index - 8][:-2]), 0)
 				else:
-					Configuration.currentPath = tmp_current_pathn;
+					Configuration.currentPath = tmp_current_path;
 					Configuration.currentPath = getPath(Configuration.currentPath, showLs.list_files[index - 8][:-2])
 					self.window.run_command("show_ls");
 			else:
